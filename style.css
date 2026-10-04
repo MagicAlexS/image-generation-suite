@@ -35,6 +35,34 @@
     flex-shrink: 0;
 }
 
+.igs-global-config-card {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px 10px;
+    border: 1px solid var(--SmartThemeBorderColor, #555);
+    border-left: 3px solid var(--SmartThemeQuoteColor, #6689a8);
+    border-radius: 8px;
+    background: var(--SmartThemeBlurTintColor, rgba(0, 0, 0, 0.12));
+    min-width: 0;
+}
+
+.igs-global-config-profile > strong {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 0.78rem;
+    color: var(--SmartThemeBodyColor, #bbb);
+}
+
+.igs-global-config-enable {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 30px;
+    cursor: pointer;
+    font-size: 0.86rem;
+}
+
 /* === Connection Status Indicator === */
 .igs-connection-status {
     display: flex;
@@ -448,55 +476,54 @@
     min-width: 0;
 }
 
-.igs-settings-nav-label {
-    font-size: 0.82rem;
-    color: var(--SmartThemeBodyColor, #aaa);
-}
-
-.igs-settings-tab-select {
-    display: none;
-    width: 100%;
-}
-
 .igs-modal-sidebar {
-    display: flex;
-    flex-wrap: nowrap;
-    gap: 4px;
-    overflow-x: auto;
-    overscroll-behavior-x: contain;
-    padding: 4px 0 8px;
-    border-bottom: 1px solid var(--SmartThemeBorderColor, #444);
-    scrollbar-width: thin;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+    min-width: 0;
+    padding: 4px;
+    border: 1px solid var(--SmartThemeBorderColor, #444);
+    border-radius: 8px;
+    background: var(--SmartThemeBlurTintColor, rgba(0, 0, 0, 0.1));
 }
 
 .igs-modal-tab-btn {
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 9px 12px;
-    border: none !important;
-    border-radius: 6px;
-    background: transparent !important;
-    color: var(--SmartThemeBodyColor, #999) !important;
-    font-size: 0.88rem;
+    min-width: 0;
+    min-height: 48px;
+    padding: 8px 10px;
+    border: 1px solid var(--SmartThemeBorderColor, #444) !important;
+    border-radius: 7px;
+    background: color-mix(in srgb, var(--SmartThemeQuoteColor, #6689a8) 8%, transparent) !important;
+    color: var(--SmartThemeBodyColor, #aaa) !important;
+    font-size: 0.86rem;
     cursor: pointer;
-    transition: background 0.15s ease, color 0.15s ease;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
     text-align: left;
-    white-space: nowrap;
-    width: auto;
-    flex: 0 0 auto;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    width: 100%;
     box-shadow: none !important;
 }
 
 .igs-modal-tab-btn:hover {
-    background: rgba(255, 255, 255, 0.05) !important;
+    background: rgba(255, 255, 255, 0.07) !important;
     color: var(--SmartThemeBodyColor, #ccc) !important;
 }
 
 .igs-modal-tab-btn.active {
-    background: var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.1)) !important;
-    color: #fff !important;
-    font-weight: 600;
+    border-color: var(--SmartThemeQuoteColor, #6689a8) !important;
+    background: color-mix(in srgb, var(--SmartThemeQuoteColor, #6689a8) 25%, transparent) !important;
+    color: var(--SmartThemeBodyColor, #ddd) !important;
+    font-weight: 700;
+    box-shadow: inset 3px 0 0 var(--SmartThemeQuoteColor, #6689a8) !important;
+}
+
+.igs-modal-tab-btn:focus-visible {
+    outline: 2px solid var(--SmartThemeQuoteColor, #8ab4d6) !important;
+    outline-offset: 1px;
 }
 
 .igs-modal-tab-btn i {
@@ -512,6 +539,76 @@
     min-width: 0;
     overflow: visible;
 }
+
+.igs-settings-category-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    margin: 0 0 12px;
+    border: 1px solid var(--SmartThemeBorderColor, #555);
+    border-left: 5px solid var(--SmartThemeQuoteColor, #6689a8);
+    border-radius: 8px;
+    background: var(--SmartThemeBlurTintColor, rgba(0, 0, 0, 0.16));
+}
+
+.igs-settings-category-icon {
+    display: grid;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    flex: 0 0 38px;
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--SmartThemeQuoteColor, #6689a8) 25%, transparent);
+    color: var(--SmartThemeBodyColor, #ddd);
+}
+
+.igs-settings-category-header h2 {
+    margin: 0;
+    font-size: 1.12rem;
+    line-height: 1.25;
+}
+
+.igs-settings-category-header p {
+    margin: 3px 0 0;
+    color: var(--SmartThemeBodyColor, #aaa);
+    font-size: 0.84rem;
+    line-height: 1.4;
+}
+
+.igs-settings-group {
+    min-width: 0;
+    padding: 12px;
+    margin: 0 0 12px;
+    border: 1px solid var(--SmartThemeBorderColor, #4a4a4a);
+    border-radius: 8px;
+    background: var(--SmartThemeBlurTintColor, rgba(0, 0, 0, 0.1));
+}
+
+.igs-settings-group:last-child { margin-bottom: 0; }
+.igs-settings-group-hidden { display: none; }
+
+.igs-settings-group > h3 {
+    margin: 0 0 10px;
+    padding: 0 0 7px;
+    border-bottom: 1px solid var(--SmartThemeBorderColor, #444);
+    color: var(--SmartThemeBodyColor, #e2e2e2);
+    font-size: 0.95rem;
+    font-weight: 700;
+}
+
+.igs-settings-group-description {
+    margin: -3px 0 10px;
+    color: var(--SmartThemeBodyColor, #aaa);
+    font-size: 0.8rem;
+    line-height: 1.4;
+}
+
+.igs-settings-group-content { min-width: 0; }
+
+.igs-settings-group .igs-profile-bar { margin: 0; }
+.igs-settings-group .igs-modal-field:last-child { margin-bottom: 0; }
+.igs-settings-group-compact { padding: 10px 12px; }
 
 .igs-modal-section { min-width: 0; }
 
@@ -672,6 +769,41 @@
     overflow-y: auto;
 }
 
+.igs-modal-item-editor > .igs-modal-item-list-header {
+    margin: -14px -14px 12px;
+    background: rgba(255, 255, 255, 0.025);
+}
+
+.igs-modal-list-item {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    min-height: 42px;
+    padding: 8px 10px;
+    border-left: 3px solid transparent;
+    border-radius: 5px;
+    color: var(--SmartThemeBodyColor, #bbb);
+    cursor: pointer;
+    overflow-wrap: anywhere;
+}
+
+.igs-modal-list-item:hover { background: rgba(255, 255, 255, 0.06); }
+
+.igs-modal-list-item.active {
+    border-left-color: var(--SmartThemeQuoteColor, #6689a8);
+    background: color-mix(in srgb, var(--SmartThemeQuoteColor, #6689a8) 25%, transparent);
+    color: var(--SmartThemeBodyColor, #ddd);
+    font-weight: 700;
+}
+
+.igs-modal-empty-msg,
+.igs-modal-editor-placeholder,
+.igs-modal-empty-editor {
+    padding: 14px 10px;
+    color: var(--SmartThemeBodyColor, #aaa);
+    line-height: 1.45;
+}
+
 .igs-modal-item-editor-empty {
     display: flex;
     align-items: center;
@@ -699,15 +831,20 @@
     .igs-settings-panel input:not([type="checkbox"]):not([type="range"]):not([type="file"]),
     .igs-settings-panel select,
     .igs-settings-panel textarea { min-height: 44px; }
-    .igs-settings-nav-label { display: none; }
-    .igs-settings-tab-select { display: block; }
-    .igs-modal-sidebar { display: none; }
+    .igs-modal-sidebar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .igs-modal-tab-btn { min-height: 48px; padding: 7px; gap: 6px; font-size: 0.78rem; }
+    .igs-modal-tab-btn i { flex: 0 0 18px; }
     .igs-quick-control-grid { grid-template-columns: minmax(0, 1fr); }
     .igs-modal-list-editor { flex-direction: column; gap: 10px; }
     .igs-modal-item-list { width: 100%; max-height: 180px; flex-shrink: 0; }
     .igs-modal-item-editor { width: 100%; min-height: 0; padding: 10px; }
     .igs-modal-content { padding-top: 0; }
     .igs-custom-select-trigger { min-height: 44px; }
+    .igs-settings-category-header { align-items: flex-start; padding: 10px; }
+    .igs-settings-category-icon { width: 34px; height: 34px; flex-basis: 34px; }
+    .igs-settings-group { padding: 10px; }
+    .igs-modal-item-editor > .igs-modal-item-list-header { margin: -10px -10px 10px; }
+    .igs-modal-tab-btn.active { box-shadow: inset 0 3px 0 var(--SmartThemeQuoteColor, #6689a8) !important; }
 }
 
 /* === Custom Style Select Dropdown === */

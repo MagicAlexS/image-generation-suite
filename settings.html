@@ -7,39 +7,39 @@
         </div>
         <div class="inline-drawer-content">
 
-            <!-- Profile Management Selector Bar -->
-            <div class="igs-profile-bar">
-                <select id="igs_profile_select" class="text_pole" title="Select Profile"></select>
-                <div class="igs-profile-actions">
-                    <div id="igs_profile_add" class="menu_button menu_button_icon" title="New Profile">
-                        <i class="fa-solid fa-plus"></i>
-                    </div>
-                    <div id="igs_profile_duplicate" class="menu_button menu_button_icon" title="Duplicate Profile">
-                        <i class="fa-solid fa-copy"></i>
-                    </div>
-                    <div id="igs_profile_rename" class="menu_button menu_button_icon" title="Rename Profile">
-                        <i class="fa-solid fa-pencil"></i>
-                    </div>
-                    <div id="igs_profile_delete" class="menu_button menu_button_icon" title="Delete Profile">
-                        <i class="fa-solid fa-trash-can"></i>
-                    </div>
-                    <div id="igs_profile_export" class="menu_button menu_button_icon" title="Export Profile">
-                        <i class="fa-solid fa-file-export"></i>
-                    </div>
-                    <div id="igs_profile_import" class="menu_button menu_button_icon" title="Import Profile">
-                        <i class="fa-solid fa-file-import"></i>
+            <section class="igs-global-config-card" aria-label="Global configuration">
+                <div class="igs-global-config-profile">
+                    <strong>Profile</strong>
+                    <div class="igs-profile-bar">
+                        <select id="igs_profile_select" class="text_pole" title="Select Profile"></select>
+                        <div class="igs-profile-actions">
+                            <div id="igs_profile_add" class="menu_button menu_button_icon" title="New Profile">
+                                <i class="fa-solid fa-plus"></i>
+                            </div>
+                            <div id="igs_profile_duplicate" class="menu_button menu_button_icon" title="Duplicate Profile">
+                                <i class="fa-solid fa-copy"></i>
+                            </div>
+                            <div id="igs_profile_rename" class="menu_button menu_button_icon" title="Rename Profile">
+                                <i class="fa-solid fa-pencil"></i>
+                            </div>
+                            <div id="igs_profile_delete" class="menu_button menu_button_icon" title="Delete Profile">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </div>
+                            <div id="igs_profile_export" class="menu_button menu_button_icon" title="Export Profile">
+                                <i class="fa-solid fa-file-export"></i>
+                            </div>
+                            <div id="igs_profile_import" class="menu_button menu_button_icon" title="Import Profile">
+                                <i class="fa-solid fa-file-import"></i>
+                            </div>
+                        </div>
+                        <input type="file" id="igs_profile_import_file" accept=".json" style="display: none;">
                     </div>
                 </div>
-                <input type="file" id="igs_profile_import_file" accept=".json" style="display: none;">
-            </div>
-
-            <!-- Enable Extension Toggle -->
-            <div class="igs-field" style="margin-top: 8px;">
-                <label class="igs-toggle-row" for="igs_extension_enabled">
+                <label class="igs-global-config-enable" for="igs_extension_enabled">
                     <input type="checkbox" id="igs_extension_enabled" class="checkbox">
-                    <span class="igs-label-text">Enable Extension</span>
+                    <span>Enable Extension</span>
                 </label>
-            </div>
+            </section>
 
             <!-- Inline quick controls and settings tabs are mounted here. -->
             <div id="igs_settings_panel"></div>

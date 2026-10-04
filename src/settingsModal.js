@@ -103,15 +103,25 @@ const RESERVED_MACRO_IDS = new Set([
 // ============================================================
 
 const TABS = [
-    { id: 'suite-hub', label: 'Quick Controls', icon: 'fa-sliders' },
-    { id: 'prompt-injection', label: 'Prompt Injection', icon: 'fa-wand-magic-sparkles' },
-    { id: 'detection-settings', label: 'Detection', icon: 'fa-magnifying-glass' },
-    { id: 'connection', label: 'Connection', icon: 'fa-plug' },
-    { id: 'prompt-construction', label: 'Prompt Construction', icon: 'fa-shapes' },
-    { id: 'styles', label: 'Styles', icon: 'fa-palette' },
-    { id: 'characters', label: 'Characters', icon: 'fa-users' },
-    { id: 'loras', label: 'LoRAs', icon: 'fa-sliders' },
+    { id: 'suite-hub', label: 'Quick Controls', icon: 'fa-sliders', description: 'Choose the scene references and prompt additions used for the next image.' },
+    { id: 'prompt-injection', label: 'Prompt Injection', icon: 'fa-wand-magic-sparkles', description: 'Control how image instructions and reusable macros enter the conversation.' },
+    { id: 'detection-settings', label: 'Detection', icon: 'fa-magnifying-glass', description: 'Choose how image requests are detected and inserted into chat.' },
+    { id: 'connection', label: 'Connection', icon: 'fa-plug', description: 'Connect an image backend and choose generation settings and workflows.' },
+    { id: 'prompt-construction', label: 'Prompt Construction', icon: 'fa-shapes', description: 'Build the positive and negative prompts sent to the image backend.' },
+    { id: 'styles', label: 'Styles', icon: 'fa-palette', description: 'Organize style collections and edit their prompts and previews.' },
+    { id: 'characters', label: 'Characters', icon: 'fa-users', description: 'Organize character references and optional outfit descriptions.' },
+    { id: 'loras', label: 'LoRAs', icon: 'fa-sliders', description: 'Manage LoRA trigger words, prompt content, and scan depth.' },
 ];
+
+function renderSettingsGroup(title, content, description = '', className = '') {
+    return `
+        <section class="igs-settings-group ${className}">
+            <h3>${title}</h3>
+            ${description ? `<p class="igs-settings-group-description">${description}</p>` : ''}
+            <div class="igs-settings-group-content">${content}</div>
+        </section>
+    `;
+}
 
 // ============================================================
 // Helper Utilities
@@ -231,7 +241,7 @@ function populateModalSelect(selectId, options, currentValue) {
  */
 function buildModalShell() {
     const sidebarButtons = TABS.map(tab => `
-        <button class="igs-modal-tab-btn${tab.id === activeTabId ? ' active' : ''}" data-tab="${tab.id}">
+        <button type="button" id="igs_tab_${tab.id}" role="tab" aria-selected="${tab.id === activeTabId}" aria-controls="igs_modal_content" tabindex="${tab.id === activeTabId ? '0' : '-1'}" class="igs-modal-tab-btn${tab.id === activeTabId ? ' active' : ''}" data-tab="${tab.id}">
             <i class="fa-solid ${tab.icon}"></i>
             <span>${tab.label}</span>
         </button>
@@ -240,15 +250,11 @@ function buildModalShell() {
     return `
         <div class="igs-settings-panel" id="igs_settings_root">
             <div class="igs-settings-nav">
-                <label class="igs-settings-nav-label" for="igs_settings_tab_select">Settings section</label>
-                <select class="text_pole igs-settings-tab-select" id="igs_settings_tab_select">
-                    ${TABS.map(tab => `<option value="${tab.id}"${tab.id === activeTabId ? ' selected' : ''}>${tab.label}</option>`).join('')}
-                </select>
-                <div class="igs-modal-sidebar">
+                <div class="igs-modal-sidebar" role="tablist" aria-label="Settings categories">
                     ${sidebarButtons}
                 </div>
             </div>
-            <div class="igs-modal-content" id="igs_modal_content"><!-- Tab content rendered here --></div>
+            <div class="igs-modal-content" id="igs_modal_content" role="tabpanel" tabindex="0"><!-- Tab content rendered here --></div>
         </div>
     `;
 }
@@ -262,7 +268,7 @@ function renderSuiteHubTab() {
     const profile = getActiveProfile();
     return `
         <div class="igs-modal-section igs-quick-controls">
-            <h3>Quick Controls</h3>
+            ${renderSettingsGroup('Scene controls', `
             <div class="igs-quick-control-grid">
                 <div class="igs-modal-field">
                     <label for="igs_hub_character_select">Character</label>
@@ -288,15 +294,20 @@ function renderSuiteHubTab() {
                 <div class="igs-window-preview-img-wrapper"><img id="igs_window_preview_img" class="igs-window-preview-img" src="" alt="Style preview"></div>
                 <div id="igs_window_desc" class="igs-window-desc"></div>
             </div>
+            `, 'Set the character, style, and prompt additions for this image.')}
+            ${renderSettingsGroup('Macro values', `
             <div class="igs-quick-macros">
-                <h4>Custom Macros</h4>
                 <div id="igs_hub_macros_container" class="igs-hub-macros"></div>
             </div>
+            `, 'Adjust values for custom macros used by the prompt template.')}
+            ${renderSettingsGroup('Actions', `
             <div class="igs-quick-actions">
                 <button id="igs_hub_retrigger" class="menu_button"><i class="fa-solid fa-arrows-rotate"></i> Re-trigger Image Generation</button>
             </div>
+            `)}
         </div>
         <div class="igs-modal-section igs-modal-section-settings">
+            ${renderSettingsGroup('Preview', `
             <div class="igs-modal-field">
                 <label class="igs-toggle-row" for="igs_m_hub_show_previews">
                     <input type="checkbox" id="igs_m_hub_show_previews" class="checkbox"
@@ -305,6 +316,7 @@ function renderSuiteHubTab() {
                 </label>
                 <div class="igs-hint">Show the active style preview in Quick Controls.</div>
             </div>
+            `)}
         </div>
     `;
 }
@@ -358,6 +370,9 @@ function renderPromptInjectionTab() {
             ${typeBadge}
         </div>`;
     });
+    if (macros.length === 0) {
+        macroListHtml = '<div class="igs-modal-empty-msg">No custom macros yet. Add one to create a reusable prompt value.</div>';
+    }
 
     // Build the macro editor (right panel)
     let macroEditorHtml = '';
@@ -370,17 +385,7 @@ function renderPromptInjectionTab() {
 
     return `
         <div class="igs-modal-section">
-            <h3>Prompt Injection</h3>
-
-            <div class="igs-modal-field">
-                <div class="igs-hint">Scene rules combine character background, ongoing story changes, consistent earlier image descriptions, and the latest scene into one complete English image description.</div>
-                <div class="igs-inline-group" style="flex-wrap: wrap;">
-                    <button type="button" id="igs_m_use_scene_defaults" class="menu_button" ${usingSceneDefaults ? 'disabled' : ''}>Use Scene Defaults</button>
-                    ${canRestore ? '<button type="button" id="igs_m_restore_prompts" class="menu_button">Restore Previous Prompts</button>' : ''}
-                </div>
-                <div class="igs-hint">Replaces both prompt fields below and keeps a saved copy for Restore Previous Prompts. Macro values and other settings stay as configured.</div>
-            </div>
-
+            ${renderSettingsGroup('Prompt behavior', `
             <div class="igs-modal-field">
                 <label class="igs-toggle-row" for="igs_m_prompt_enabled">
                     <input type="checkbox" id="igs_m_prompt_enabled" class="checkbox"
@@ -396,13 +401,6 @@ function renderPromptInjectionTab() {
                     min="1" max="100" value="${profile.prompt.frequency || 1}">
                 <div class="igs-hint">Generate an image every N messages.</div>
             </div>
-
-            <div class="igs-modal-field">
-                <label class="igs-field-label" for="igs_m_prompt_template">Prompt Template</label>
-                <textarea id="igs_m_prompt_template" class="text_pole" rows="4">${esc(profile.prompt.template)}</textarea>
-                <div class="igs-hint">The injection prompt sent to the LLM. Use {macroId} to insert custom macro values.</div>
-            </div>
-
             <div class="igs-modal-field">
                 <label class="igs-field-label">Position &amp; Depth</label>
                 <div class="igs-inline-group">
@@ -416,29 +414,51 @@ function renderPromptInjectionTab() {
                 </div>
                 <div class="igs-hint">Where in the conversation history the injection is placed.</div>
             </div>
+            `, 'Choose when and where image instructions enter the conversation.')}
 
+            ${renderSettingsGroup('Prompt template', `
+            <div class="igs-modal-field">
+                <div class="igs-hint">Scene rules combine character background, ongoing story changes, consistent earlier image descriptions, and the latest scene into one complete English image description.</div>
+                <div class="igs-inline-group" style="flex-wrap: wrap;">
+                    <button type="button" id="igs_m_use_scene_defaults" class="menu_button" ${usingSceneDefaults ? 'disabled' : ''}>Use Scene Defaults</button>
+                    ${canRestore ? '<button type="button" id="igs_m_restore_prompts" class="menu_button">Restore Previous Prompts</button>' : ''}
+                </div>
+                <div class="igs-hint">Replaces both prompt fields below and keeps a saved copy for Restore Previous Prompts. Macro values and other settings stay as configured.</div>
+            </div>
+            <div class="igs-modal-field">
+                <label class="igs-field-label" for="igs_m_prompt_template">Prompt Template</label>
+                <textarea id="igs_m_prompt_template" class="text_pole" rows="4">${esc(profile.prompt.template)}</textarea>
+                <div class="igs-hint">The injection prompt sent to the LLM. Use {macroId} to insert custom macro values.</div>
+            </div>
+            `, 'Set the instruction sent to the language model. Scene defaults can be restored from the saved previous version.')}
+
+            ${renderSettingsGroup('Character reference', `
             <div class="igs-modal-field">
                 <label class="igs-field-label" for="igs_m_character_defining">Character Defining Prompt</label>
                 <textarea id="igs_m_character_defining" class="text_pole" rows="4"
                     placeholder="${esc(DEFAULT_CHARACTER_PROMPT)}">${esc(profile.promptConstruction.characterDefining || '')}</textarea>
                 <div class="igs-hint">Appended for the manually selected character. Use {characterName}, {character}, and {outfits}. Background and outfit references do not override current story changes.</div>
             </div>
+            `)}
         </div>
 
         <div class="igs-modal-divider"></div>
 
         <div class="igs-modal-section">
-            <h3>Custom Macros</h3>
+            ${renderSettingsGroup('Custom macro editor', `
             <div class="igs-hint" style="margin-bottom: 8px;">Define macros to use as <code>{macroId}</code> placeholders in your prompt template. Control their values from Quick Controls.</div>
             <div class="igs-modal-list-editor">
                 <div class="igs-modal-item-list">
+                    <div class="igs-modal-item-list-header">Macro list</div>
                     ${macroListHtml}
                     <button class="igs-m-macro-add menu_button">+ Add Macro</button>
                 </div>
                 <div class="igs-modal-item-editor">
+                    <div class="igs-modal-item-list-header">Macro details</div>
                     ${macroEditorHtml}
                 </div>
             </div>
+            `)}
         </div>
     `;
 }
@@ -777,8 +797,16 @@ function renderDetectionSettingsTab() {
     const profile = getActiveProfile();
     return `
         <div class="igs-modal-section">
-            <h3>Detection Settings</h3>
+            ${renderSettingsGroup('Extraction', `
+            <div class="igs-modal-field">
+                <label class="igs-field-label" for="igs_m_regex">Regex Pattern</label>
+                <input type="text" id="igs_m_regex" class="text_pole"
+                    value="${esc(profile.settings.regex)}">
+                <div class="igs-hint">The regex pattern used to detect image generation tags in LLM output.</div>
+            </div>
+            `, 'Control how image-generation tags are recognized in model output.')}
 
+            ${renderSettingsGroup('Insertion', `
             <div class="igs-modal-field">
                 <label class="igs-field-label" for="igs_m_insert_type">Insert Type</label>
                 <select id="igs_m_insert_type" class="text_pole">
@@ -787,14 +815,6 @@ function renderDetectionSettingsTab() {
                 </select>
                 <div class="igs-hint">How the generated image is inserted into the chat.</div>
             </div>
-
-            <div class="igs-modal-field">
-                <label class="igs-field-label" for="igs_m_regex">Regex Pattern</label>
-                <input type="text" id="igs_m_regex" class="text_pole"
-                    value="${esc(profile.settings.regex)}">
-                <div class="igs-hint">The regex pattern used to detect image generation tags in LLM output.</div>
-            </div>
-
             <div class="igs-modal-field">
                 <label class="igs-toggle-row" for="igs_m_hide_from_llm">
                     <input type="checkbox" id="igs_m_hide_from_llm" class="checkbox"
@@ -803,6 +823,7 @@ function renderDetectionSettingsTab() {
                 </label>
                 <div class="igs-hint">When enabled, generated image messages are hidden from the LLM context.</div>
             </div>
+            `, 'Choose where the generated image appears in the conversation.')}
         </div>
     `;
 }
@@ -825,8 +846,7 @@ function renderConnectionTab() {
 
     return `
         <div class="igs-modal-section">
-            <h3>Connection</h3>
-
+            ${renderSettingsGroup('Backend', `
             <div class="igs-modal-field">
                 <label class="igs-field-label" for="igs_m_server_type">Server Type</label>
                 <select id="igs_m_server_type" class="text_pole">
@@ -875,9 +895,9 @@ function renderConnectionTab() {
                     <span>Not connected</span>
                 </div>
             </div>
+            `, 'Choose a server and connect to it. Backend-specific fields follow the selected server type.')}
 
-            <hr>
-
+            ${renderSettingsGroup('Generation parameters', `
             <!-- Resource Selects -->
             <div class="igs-modal-field">
                 <label class="igs-field-label" for="igs_m_model">Model</label>
@@ -963,7 +983,9 @@ function renderConnectionTab() {
                 <input type="number" id="igs_m_seed" class="text_pole" value="${conn.seed ?? -1}">
                 <div class="igs-hint">Use -1 for random seed.</div>
             </div>
+            `, 'Select the model and tune image size, sampling, and seed.')}
 
+            ${renderSettingsGroup('Workflow', `
             <!-- ComfyUI Workflow -->
             <div class="igs-m-comfy-only" style="${isComfy ? '' : 'display:none;'}">
                 <div class="igs-modal-field">
@@ -982,6 +1004,7 @@ function renderConnectionTab() {
                 </div>
                 <div id="igs_workflow_editor_mount"></div>
             </div>
+            `, 'Choose or edit the ComfyUI workflow used for generation.', isComfy ? 'igs-workflow-settings-group' : 'igs-workflow-settings-group igs-settings-group-hidden')}
         </div>
     `;
 }
@@ -1059,6 +1082,7 @@ function bindConnectionTab() {
             modal.find('.igs-m-comfy-only').hide();
             modal.find('.igs-m-auto-only').show();
         }
+        modal.find('.igs-workflow-settings-group').toggle(conn.serverType === 'comfy');
     });
 
     // URL / Auth inputs
@@ -1227,28 +1251,29 @@ function renderPromptConstructionTab() {
 
     return `
         <div class="igs-modal-section">
-            <h3>Image Prompt Construction</h3>
-
+            ${renderSettingsGroup('Positive prompt', `
             <div class="igs-modal-field">
                 <label class="igs-field-label" for="igs_m_prompt_prefix">Prompt Prefix</label>
                 <textarea id="igs_m_prompt_prefix" class="text_pole" rows="2">${esc(pc.prefix)}</textarea>
             </div>
-
-            <div class="igs-modal-field">
-                <label class="igs-field-label" for="igs_m_negative_prompt_prefix">Negative Prefix</label>
-                <textarea id="igs_m_negative_prompt_prefix" class="text_pole" rows="2">${esc(pc.negativePrefix)}</textarea>
-            </div>
-
             <div class="igs-modal-field">
                 <label class="igs-field-label" for="igs_m_prompt_suffix">Prompt Suffix</label>
                 <textarea id="igs_m_prompt_suffix" class="text_pole" rows="2">${esc(pc.suffix)}</textarea>
             </div>
+            `, 'Add text before and after the generated positive prompt.')}
 
+            ${renderSettingsGroup('Negative prompt', `
+            <div class="igs-modal-field">
+                <label class="igs-field-label" for="igs_m_negative_prompt_prefix">Negative Prefix</label>
+                <textarea id="igs_m_negative_prompt_prefix" class="text_pole" rows="2">${esc(pc.negativePrefix)}</textarea>
+            </div>
             <div class="igs-modal-field">
                 <label class="igs-field-label" for="igs_m_negative_suffix">Negative Suffix</label>
                 <textarea id="igs_m_negative_suffix" class="text_pole" rows="2">${esc(pc.negativeSuffix)}</textarea>
             </div>
+            `, 'Add text before and after the negative prompt.')}
 
+            ${renderSettingsGroup('Prompt templates', `
             <div class="igs-modal-field">
                 <label class="igs-field-label" for="igs_m_positive_prompt_template">Positive Template</label>
                 <textarea id="igs_m_positive_prompt_template" class="text_pole" rows="3"
@@ -1262,6 +1287,7 @@ function renderPromptConstructionTab() {
                     placeholder="{negativePrefix}, {negative}, {negativeExtra}, {negativeSuffix}">${esc(pc.negativeTemplate)}</textarea>
                 <div class="igs-hint">Available macros: {negativePrefix}, {negative}, {negativeExtra}, {negativeSuffix}</div>
             </div>
+            `, 'Set how prompt parts are combined before sending them to the backend.')}
         </div>
     `;
 }
@@ -1369,9 +1395,7 @@ function renderStylesTab() {
 
     return `
         <div class="igs-modal-section">
-            <h3>Styles</h3>
-
-            <!-- Style Profile Bar -->
+            ${renderSettingsGroup('Style collection', `
             <div class="igs-profile-bar">
                 <select id="igs_m_style_profile_select" class="text_pole">${styleProfileOptions}</select>
                 <div class="igs-profile-actions">
@@ -1384,10 +1408,12 @@ function renderStylesTab() {
                 </div>
                 <input type="file" id="igs_m_style_profile_import_file" accept=".json" style="display:none;">
             </div>
+            `, 'Choose a collection and manage its saved profiles.')}
 
-            <!-- List + Editor -->
+            ${renderSettingsGroup('Styles in this collection', `
             <div class="igs-modal-list-editor">
                 <div class="igs-modal-item-list">
+                    <div class="igs-modal-item-list-header">Style list</div>
                     ${listItems}
                     <div class="menu_button menu_button_icon igs-m-style-add" style="width:100%; margin-top: 6px;">
                         <i class="fa-solid fa-plus"></i>
@@ -1395,9 +1421,11 @@ function renderStylesTab() {
                     </div>
                 </div>
                 <div class="igs-modal-item-editor">
+                    <div class="igs-modal-item-list-header">Style details</div>
                     ${editorHtml}
                 </div>
             </div>
+            `, 'Select a style to edit its name, prompt, and preview image.')}
         </div>
     `;
 }
@@ -1671,7 +1699,7 @@ function renderCharactersTab() {
 
     return `
         <div class="igs-modal-section">
-            <h3>Characters</h3>
+            ${renderSettingsGroup('Character collection', `
             <div class="igs-profile-bar">
                 <select id="igs_m_char_profile_select" class="text_pole">${charProfileOptions}</select>
                 <div class="igs-profile-actions">
@@ -1684,8 +1712,12 @@ function renderCharactersTab() {
                 </div>
                 <input type="file" id="igs_m_char_profile_import_file" accept=".json" style="display:none;">
             </div>
+            `, 'Choose a collection and manage its saved profiles.')}
+
+            ${renderSettingsGroup('Characters in this collection', `
             <div class="igs-modal-list-editor">
                 <div class="igs-modal-item-list">
+                    <div class="igs-modal-item-list-header">Character list</div>
                     ${listItems}
                     <div class="menu_button menu_button_icon igs-m-char-add" style="width:100%; margin-top: 6px;">
                         <i class="fa-solid fa-plus"></i>
@@ -1693,9 +1725,11 @@ function renderCharactersTab() {
                     </div>
                 </div>
                 <div class="igs-modal-item-editor">
+                    <div class="igs-modal-item-list-header">Character details</div>
                     ${editorHtml}
                 </div>
             </div>
+            `, 'Select a character to edit its reference and optional outfits.')}
         </div>
     `;
 }
@@ -1996,9 +2030,7 @@ function renderLorasTab() {
 
     return `
         <div class="igs-modal-section">
-            <h3>LoRAs</h3>
-
-            <!-- LoRA Profile Bar -->
+            ${renderSettingsGroup('LoRA collection', `
             <div class="igs-profile-bar">
                 <select id="igs_m_lora_profile_select" class="text_pole">${loraProfileOptions}</select>
                 <div class="igs-profile-actions">
@@ -2011,18 +2043,21 @@ function renderLorasTab() {
                 </div>
                 <input type="file" id="igs_m_lora_profile_import_file" accept=".json" style="display:none;">
             </div>
+            `, 'Choose a collection and manage its saved profiles.')}
 
-            <!-- LoRA Scan Depth -->
+            ${renderSettingsGroup('Scan behavior', `
             <div class="igs-modal-field">
                 <label class="igs-field-label" for="igs_m_lora_depth">LoRA Scan Depth</label>
                 <input type="number" id="igs_m_lora_depth" class="text_pole"
                     min="1" max="50" value="${profile.loras?.depth || 1}">
                 <div class="igs-hint">Number of recent messages to scan for trigger words.</div>
             </div>
+            `)}
 
-            <!-- List + Editor -->
+            ${renderSettingsGroup('LoRAs in this collection', `
             <div class="igs-modal-list-editor">
                 <div class="igs-modal-item-list">
+                    <div class="igs-modal-item-list-header">LoRA list</div>
                     ${listItems}
                     <div class="menu_button menu_button_icon igs-m-lora-add" style="width:100%; margin-top: 6px;">
                         <i class="fa-solid fa-plus"></i>
@@ -2030,9 +2065,11 @@ function renderLorasTab() {
                     </div>
                 </div>
                 <div class="igs-modal-item-editor">
+                    <div class="igs-modal-item-list-header">LoRA details</div>
                     ${editorHtml}
                 </div>
             </div>
+            `, 'Select a LoRA to edit its trigger words and prompt content.')}
         </div>
     `;
 }
@@ -2249,7 +2286,14 @@ function renderActiveTab() {
         return;
     }
 
-    content.html(entry.render());
+    const tab = TABS.find(item => item.id === activeTabId);
+    content.html(`
+        <header class="igs-settings-category-header">
+            <div class="igs-settings-category-icon"><i class="fa-solid ${tab.icon}" aria-hidden="true"></i></div>
+            <div><h2>${tab.label}</h2><p>${tab.description}</p></div>
+        </header>
+        ${entry.render()}
+    `);
     entry.bind();
 
     if (activeTabId === 'suite-hub') {
@@ -2258,10 +2302,14 @@ function renderActiveTab() {
         modalCallbacks?.updateFloatingWindow?.();
     }
 
-    // Update sidebar active state
-    modal.find('.igs-modal-tab-btn').removeClass('active');
-    modal.find(`.igs-modal-tab-btn[data-tab="${activeTabId}"]`).addClass('active');
-    modal.find('#igs_settings_tab_select').val(activeTabId);
+    // Keep the category tags accessible to keyboard and assistive technology.
+    modal.find('.igs-modal-tab-btn')
+        .removeClass('active')
+        .attr('aria-selected', 'false')
+        .attr('tabindex', '-1');
+    const activeTab = modal.find(`.igs-modal-tab-btn[data-tab="${activeTabId}"]`);
+    activeTab.addClass('active').attr('aria-selected', 'true').attr('tabindex', '0');
+    content.attr('aria-labelledby', activeTab.attr('id'));
 }
 
 // ============================================================
@@ -2294,8 +2342,21 @@ export function openSettingsModal(callbacks, requestedTabId = 'suite-hub') {
         root.on('click.igsmodal', '.igs-modal-tab-btn', function () {
             setActiveTab($(this).data('tab'));
         });
-        root.on('change.igsmodal', '#igs_settings_tab_select', function () {
-            setActiveTab($(this).val());
+        root.on('keydown.igsmodal', '.igs-modal-tab-btn', function (event) {
+            const tabs = TABS.map(tab => tab.id);
+            const currentIndex = tabs.indexOf($(this).data('tab'));
+            let nextIndex = currentIndex;
+
+            if (event.key === 'ArrowRight') nextIndex = (currentIndex + 1) % tabs.length;
+            else if (event.key === 'ArrowLeft') nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+            else if (event.key === 'Home') nextIndex = 0;
+            else if (event.key === 'End') nextIndex = tabs.length - 1;
+            else return;
+
+            event.preventDefault();
+            const nextTabId = tabs[nextIndex];
+            setActiveTab(nextTabId);
+            root.find(`.igs-modal-tab-btn[data-tab="${nextTabId}"]`).trigger('focus');
         });
         return;
     }

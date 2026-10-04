@@ -83,7 +83,7 @@ Everything is organized through a **profile system** so you can save, swap, and 
 ## Quick Start
 
 1. **Enable the extension** in the drawer panel.
-2. Choose **Connection** in the inline settings section selector.
+2. Choose the **Connection** tag in the inline settings panel.
 3. Select your server type (ComfyUI or A1111), enter the URL, and click the connect button.
 4. Select your model, sampler, and desired resolution.
 5. Go to the **Prompt Injection** tab → enable prompt injection. The default template works out of the box.
@@ -96,7 +96,8 @@ Everything is organized through a **profile system** so you can save, swap, and 
 All controls and settings live inside **Extensions → Image Generation Suite**. There is no separate floating Hub or settings modal. The panel follows SillyTavern's drawer scrolling and adapts to narrow screens.
 
 - Choose **Quick Controls** for character/style selection, prompt additions, style previews, custom macro values, and re-triggering.
-- Choose a settings section from the single section selector; switching sections does not require another window.
+- Choose a category from the visible tags; they wrap on narrow screens. Each category has a heading and description, with related settings grouped into titled cards.
+- Use Left/Right arrow keys or Home/End while a tag is focused to switch categories.
 - The extension menu shortcut and the existing `/suitehub` command open and scroll to this inline panel.
 - Existing profiles and imports remain compatible. Saved floating-window coordinates and visibility are retained as legacy data and no longer affect the interface.
 
@@ -123,7 +124,7 @@ Displays all custom macros you've defined in the Prompt Injection settings. Adju
 
 ## Settings Tabs
 
-Use the **Settings section** selector to move directly between quick controls and the settings sections. Each section is described below.
+Use the category tags to move directly between quick controls and settings. The selected tag is highlighted, and titled cards distinguish each group of settings from its individual fields. Each section is described below.
 
 ---
 
