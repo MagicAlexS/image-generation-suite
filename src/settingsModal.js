@@ -1,6 +1,6 @@
 /**
  * @file settingsModal.js
- * @description Renders the full settings UI inside a modal dialog.
+ * @description Renders the full settings UI inside the extension drawer.
  *
  * Replaces the old accordion-based settings that were in settings.html.
  * Each tab is rendered dynamically -- switching tabs replaces the content area.
@@ -82,9 +82,6 @@ let selectedCharIndex = -1;
 /** @type {number} Currently selected LoRA index in the LoRAs tab */
 let selectedLoraIndex = -1;
 
-/** @type {Function|null} Escape key handler reference (for cleanup) */
-let escapeHandler = null;
-
 /** @type {number} Currently selected macro index in the Prompt Injection tab */
 let selectedMacroIndex = -1;
 
@@ -100,7 +97,7 @@ const RESERVED_MACRO_IDS = new Set([
 // ============================================================
 
 const TABS = [
-    { id: 'suite-hub', label: 'Suite Hub', icon: 'fa-house-chimney' },
+    { id: 'suite-hub', label: 'Quick Controls', icon: 'fa-sliders' },
     { id: 'prompt-injection', label: 'Prompt Injection', icon: 'fa-wand-magic-sparkles' },
     { id: 'detection-settings', label: 'Detection', icon: 'fa-magnifying-glass' },
     { id: 'connection', label: 'Connection', icon: 'fa-plug' },
@@ -130,14 +127,14 @@ function esc(str) {
 }
 
 /**
- * Binds a modal input field to a callback. Uses delegated events on the modal root.
+ * Binds an input field to a callback. Uses delegated events on the inline settings root.
  *
  * @param {string} id - The HTML element ID.
  * @param {Function} callback - Callback receiving the new value.
  * @param {boolean} [isCheckbox=false] - True if binding a checkbox.
  */
 function bindModalInput(id, callback, isCheckbox = false) {
-    const modal = $('#igs_settings_modal');
+    const modal = $('#igs_settings_root');
     if (isCheckbox) {
         modal.on('change.igstab', `#${id}`, function () {
             callback($(this).prop('checked'));
@@ -152,14 +149,14 @@ function bindModalInput(id, callback, isCheckbox = false) {
 }
 
 /**
- * Synchronizes a range slider and paired number input inside the modal.
+ * Synchronizes a range slider and paired number input inside the settings panel.
  *
  * @param {string} sliderId - The range slider input ID.
  * @param {string} valueId - The paired number input ID.
  * @param {Function} onUpdate - Callback receiving the new value.
  */
 function bindModalSlider(sliderId, valueId, onUpdate) {
-    const modal = $('#igs_settings_modal');
+    const modal = $('#igs_settings_root');
 
     modal.on('input.igstab change.igstab', `#${sliderId}`, function () {
         const val = $(this).val();
@@ -219,11 +216,11 @@ function populateModalSelect(selectId, options, currentValue) {
 }
 
 // ============================================================
-// Modal Shell
+// Inline Settings Shell
 // ============================================================
 
 /**
- * Builds the outer modal HTML shell (backdrop + modal frame + sidebar + content area).
+ * Builds the inline settings navigation and content area.
  * @returns {string} HTML string.
  */
 function buildModalShell() {
@@ -235,22 +232,17 @@ function buildModalShell() {
     `).join('');
 
     return `
-        <div class="igs-modal-backdrop" id="igs_modal_backdrop"></div>
-        <div class="igs-modal" id="igs_settings_modal">
-            <div class="igs-modal-header">
-                <span>Image Generation Suite Settings</span>
-                <div class="igs-modal-close" id="igs_modal_close" title="Close">
-                    <i class="fa-solid fa-xmark"></i>
-                </div>
-            </div>
-            <div class="igs-modal-body">
+        <div class="igs-settings-panel" id="igs_settings_root">
+            <div class="igs-settings-nav">
+                <label class="igs-settings-nav-label" for="igs_settings_tab_select">Settings section</label>
+                <select class="text_pole igs-settings-tab-select" id="igs_settings_tab_select">
+                    ${TABS.map(tab => `<option value="${tab.id}"${tab.id === activeTabId ? ' selected' : ''}>${tab.label}</option>`).join('')}
+                </select>
                 <div class="igs-modal-sidebar">
                     ${sidebarButtons}
                 </div>
-                <div class="igs-modal-content" id="igs_modal_content">
-                    <!-- Tab content rendered here -->
-                </div>
             </div>
+            <div class="igs-modal-content" id="igs_modal_content"><!-- Tab content rendered here --></div>
         </div>
     `;
 }
@@ -261,24 +253,51 @@ function buildModalShell() {
 
 function renderSuiteHubTab() {
     const settings = getSettings();
+    const profile = getActiveProfile();
     return `
-        <div class="igs-modal-section">
-            <h3>Suite Hub</h3>
-            <div class="igs-modal-field">
-                <label class="igs-toggle-row" for="igs_m_hub_show_window">
-                    <input type="checkbox" id="igs_m_hub_show_window" class="checkbox"
-                        ${settings.style_show_window ? 'checked' : ''}>
-                    <span>Show Window</span>
-                </label>
-                <div class="igs-hint">Toggle the floating Suite Hub window overlay.</div>
+        <div class="igs-modal-section igs-quick-controls">
+            <h3>Quick Controls</h3>
+            <div class="igs-quick-control-grid">
+                <div class="igs-modal-field">
+                    <label for="igs_hub_character_select">Character</label>
+                    <select id="igs_hub_character_select" class="text_pole"><option value="">(None)</option></select>
+                </div>
+                <div class="igs-modal-field">
+                    <label for="igs_hub_prompt_extra">Prompt Addition</label>
+                    <input type="text" id="igs_hub_prompt_extra" class="text_pole" placeholder="Extra positive prompt..." value="${esc(profile?.hub?.promptExtra || '')}">
+                </div>
+                <div class="igs-modal-field">
+                    <label for="igs_hub_negative_extra">Negative Addition</label>
+                    <input type="text" id="igs_hub_negative_extra" class="text_pole" placeholder="Extra negative prompt..." value="${esc(profile?.hub?.negativeExtra || '')}">
+                </div>
+                <div class="igs-modal-field">
+                    <label>Style</label>
+                    <div id="igs_custom_style_select" class="igs-custom-select">
+                        <div class="igs-custom-select-trigger"><span>Default (No Style)</span><i class="fa-solid fa-chevron-down"></i></div>
+                        <div class="igs-custom-select-options"></div>
+                    </div>
+                </div>
             </div>
+            <div class="igs-quick-preview" id="igs_window_preview_container" style="display:none;">
+                <div class="igs-window-preview-img-wrapper"><img id="igs_window_preview_img" class="igs-window-preview-img" src="" alt="Style preview"></div>
+                <div id="igs_window_desc" class="igs-window-desc"></div>
+            </div>
+            <div class="igs-quick-macros">
+                <h4>Custom Macros</h4>
+                <div id="igs_hub_macros_container" class="igs-hub-macros"></div>
+            </div>
+            <div class="igs-quick-actions">
+                <button id="igs_hub_retrigger" class="menu_button"><i class="fa-solid fa-arrows-rotate"></i> Re-trigger Image Generation</button>
+            </div>
+        </div>
+        <div class="igs-modal-section igs-modal-section-settings">
             <div class="igs-modal-field">
                 <label class="igs-toggle-row" for="igs_m_hub_show_previews">
                     <input type="checkbox" id="igs_m_hub_show_previews" class="checkbox"
                         ${settings.style_show_previews ? 'checked' : ''}>
                     <span>Preview Image Style</span>
                 </label>
-                <div class="igs-hint">Show the style preview image in the hub window.</div>
+                <div class="igs-hint">Show the active style preview in Quick Controls.</div>
             </div>
         </div>
     `;
@@ -286,10 +305,24 @@ function renderSuiteHubTab() {
 
 function bindSuiteHubTab() {
     const settings = getSettings();
-    bindModalInput('igs_m_hub_show_window', val => {
-        settings.style_show_window = val;
-        if (modalCallbacks?.updateFloatingWindow) modalCallbacks.updateFloatingWindow();
-    }, true);
+    bindModalInput('igs_hub_character_select', val => {
+        const profile = getActiveProfile();
+        if (profile) profile.activeCharacterId = val;
+    });
+    bindModalInput('igs_hub_prompt_extra', val => {
+        const profile = getActiveProfile();
+        if (profile) {
+            if (!profile.hub) profile.hub = {};
+            profile.hub.promptExtra = val;
+        }
+    });
+    bindModalInput('igs_hub_negative_extra', val => {
+        const profile = getActiveProfile();
+        if (profile) {
+            if (!profile.hub) profile.hub = {};
+            profile.hub.negativeExtra = val;
+        }
+    });
     bindModalInput('igs_m_hub_show_previews', val => {
         settings.style_show_previews = val;
         if (modalCallbacks?.updateFloatingWindow) modalCallbacks.updateFloatingWindow();
@@ -513,7 +546,7 @@ function validateMacroId(id, currentIndex) {
 }
 
 function bindPromptInjectionTab() {
-    const modal = $('#igs_settings_modal');
+    const modal = $('#igs_settings_root');
     const profile = getActiveProfile();
 
     // Standard prompt injection field bindings
@@ -906,6 +939,7 @@ function renderConnectionTab() {
                         </div>
                     </div>
                 </div>
+                <div id="igs_workflow_editor_mount"></div>
             </div>
         </div>
     `;
@@ -913,7 +947,7 @@ function renderConnectionTab() {
 
 /**
  * Connects to the active backend, validates connection,
- * and populates resource selects (models, vaes, samplers, etc.) inside the modal.
+ * and populates resource selects (models, vaes, samplers, etc.) in the Connection tab.
  *
  * @param {'comfy'|'auto'} type - The backend type.
  */
@@ -971,7 +1005,7 @@ async function handleModalConnect(type) {
 function bindConnectionTab() {
     const profile = getActiveProfile();
     const conn = profile.connection;
-    const modal = $('#igs_settings_modal');
+    const modal = $('#igs_settings_root');
 
     // Server type toggle
     modal.on('change.igstab', '#igs_m_server_type', function () {
@@ -1005,30 +1039,33 @@ function bindConnectionTab() {
     // --- Workflow Management Handlers ---
 
     /**
-     * Opens a full-screen editor overlay for the given workflow file.
+     * Opens the inline editor for the given workflow file.
      * @param {string} fileName - The workflow filename to edit.
      */
     async function openWorkflowEditor(fileName) {
         try {
+            const mount = document.getElementById('igs_workflow_editor_mount');
+            const profileId = profile.id;
+            if (!mount) return;
+
             const workflowData = await loadWorkflow(fileName);
+            if (!mount.isConnected || getActiveProfile()?.id !== profileId) return;
             const jsonText = typeof workflowData === 'string' ? workflowData : JSON.stringify(workflowData, null, 2);
 
             const popup = document.createElement('div');
-            popup.className = 'igs-workflow-editor-overlay';
+            popup.className = 'igs-workflow-editor-popup';
             popup.innerHTML = `
-                <div class="igs-workflow-editor-popup">
-                    <div class="igs-workflow-editor-header">
-                        <h3>Edit Workflow: ${esc(fileName)}</h3>
-                        <i class="fa-solid fa-xmark igs-workflow-editor-close"></i>
-                    </div>
-                    <textarea class="igs-workflow-editor-textarea">${esc(jsonText)}</textarea>
-                    <div class="igs-workflow-editor-footer">
-                        <button class="menu_button igs-workflow-editor-save">Save</button>
-                        <button class="menu_button igs-workflow-editor-cancel">Cancel</button>
-                    </div>
+                <div class="igs-workflow-editor-header">
+                    <h3>Edit Workflow: ${esc(fileName)}</h3>
+                    <i class="fa-solid fa-xmark igs-workflow-editor-close" title="Cancel"></i>
+                </div>
+                <textarea class="igs-workflow-editor-textarea" spellcheck="false">${esc(jsonText)}</textarea>
+                <div class="igs-workflow-editor-footer">
+                    <button class="menu_button igs-workflow-editor-save">Save</button>
+                    <button class="menu_button igs-workflow-editor-cancel">Cancel</button>
                 </div>
             `;
-            document.body.appendChild(popup);
+            mount.replaceChildren(popup);
 
             const closePopup = () => popup.remove();
 
@@ -1325,7 +1362,7 @@ function renderStylesTab() {
 }
 
 function bindStylesTab() {
-    const modal = $('#igs_settings_modal');
+    const modal = $('#igs_settings_root');
     const profile = getActiveProfile();
     const settings = getSettings();
 
@@ -1621,7 +1658,7 @@ function renderCharactersTab() {
 }
 
 function bindCharactersTab() {
-    const modal = $('#igs_settings_modal');
+    const modal = $('#igs_settings_root');
     const profile = getActiveProfile();
 
     // === Character Profile bar ===
@@ -1958,7 +1995,7 @@ function renderLorasTab() {
 }
 
 function bindLorasTab() {
-    const modal = $('#igs_settings_modal');
+    const modal = $('#igs_settings_root');
     const profile = getActiveProfile();
     const settings = getSettings();
 
@@ -2150,18 +2187,17 @@ const TAB_RENDERERS = {
 };
 
 /**
- * Renders the currently active tab into the modal content area.
+ * Renders the currently active tab into the inline content area.
  * Unbinds old delegated events and binds new ones for the active tab.
  */
 function renderActiveTab() {
     const content = $('#igs_modal_content');
-    const modal = $('#igs_settings_modal');
+    const modal = $('#igs_settings_root');
     if (!content.length) return;
 
-    // Unbind ALL delegated events from the modal content area before rebinding.
+    // Unbind tab-content handlers before rebinding.
     // This prevents duplicate handlers accumulating on tab re-render.
-    // The tab-switch and backdrop/close/escape handlers are bound in openSettingsModal
-    // and are NOT affected since they are on separate selectors (.igs-modal-tab-btn etc.).
+    // Navigation handlers use a separate event namespace on the root.
     modal.off('click.igstab change.igstab input.igstab');
 
     const entry = TAB_RENDERERS[activeTabId];
@@ -2173,9 +2209,16 @@ function renderActiveTab() {
     content.html(entry.render());
     entry.bind();
 
+    if (activeTabId === 'suite-hub') {
+        modalCallbacks?.populateFloatingStyleSelect?.();
+        modalCallbacks?.populateFloatingCharacterSelect?.();
+        modalCallbacks?.updateFloatingWindow?.();
+    }
+
     // Update sidebar active state
     modal.find('.igs-modal-tab-btn').removeClass('active');
     modal.find(`.igs-modal-tab-btn[data-tab="${activeTabId}"]`).addClass('active');
+    modal.find('#igs_settings_tab_select').val(activeTabId);
 }
 
 // ============================================================
@@ -2183,86 +2226,57 @@ function renderActiveTab() {
 // ============================================================
 
 /**
- * Opens the settings modal dialog.
+ * Mounts the inline settings panel and optionally selects a tab.
  *
  * @param {object} callbacks - Callback functions provided by the caller.
  * @param {Function} callbacks.onProfileSwitch - Called when the active profile changes.
- * @param {Function} callbacks.updateFloatingWindow - Called to refresh the floating hub.
- * @param {Function} callbacks.populateFloatingStyleSelect - Called to refresh style dropdown.
- * @param {Function} callbacks.populateFloatingCharacterSelect - Called to refresh character dropdown.
+ * @param {Function} callbacks.updateFloatingWindow - Called to refresh inline quick controls.
+ * @param {Function} callbacks.populateFloatingStyleSelect - Called to refresh the quick style selector.
+ * @param {Function} callbacks.populateFloatingCharacterSelect - Called to refresh the quick character selector.
  */
-export function openSettingsModal(callbacks) {
-    // Remove any existing modal
-    closeSettingsModal();
-
-    modalCallbacks = callbacks || {};
-    activeTabId = 'suite-hub';
-    selectedStyleIndex = -1;
-    selectedCharIndex = -1;
-    selectedLoraIndex = -1;
-    selectedMacroIndex = -1;
-
-    // Append modal shell to body
-    $(document.body).append(buildModalShell());
-
-    // Render default tab
-    renderActiveTab();
-
-    // === Event Bindings ===
-
-    // Tab switching
-    $('#igs_settings_modal').on('click.igsmodal', '.igs-modal-tab-btn', function () {
-        const tabId = $(this).data('tab');
-        if (tabId === activeTabId) return;
-
-        // Reset item selections when switching tabs
-        if (activeTabId === 'styles') selectedStyleIndex = -1;
-        if (activeTabId === 'characters') selectedCharIndex = -1;
-        if (activeTabId === 'loras') selectedLoraIndex = -1;
-        if (activeTabId === 'prompt-injection') selectedMacroIndex = -1;
-
-        activeTabId = tabId;
+export function openSettingsModal(callbacks, requestedTabId = 'suite-hub') {
+    modalCallbacks = callbacks || modalCallbacks || {};
+    if (!$('#igs_settings_root').length) {
+        const mount = $('#igs_settings_panel');
+        if (!mount.length) return;
+        mount.empty().append(buildModalShell());
+        activeTabId = TAB_RENDERERS[requestedTabId] ? requestedTabId : 'suite-hub';
+        selectedStyleIndex = -1;
+        selectedCharIndex = -1;
+        selectedLoraIndex = -1;
+        selectedMacroIndex = -1;
         renderActiveTab();
-    });
 
-    // Close on backdrop click
-    $('#igs_modal_backdrop').on('click', () => closeSettingsModal());
+        const root = $('#igs_settings_root');
+        root.on('click.igsmodal', '.igs-modal-tab-btn', function () {
+            setActiveTab($(this).data('tab'));
+        });
+        root.on('change.igsmodal', '#igs_settings_tab_select', function () {
+            setActiveTab($(this).val());
+        });
+        return;
+    }
 
-    // Close on X button
-    $('#igs_modal_close').on('click', () => closeSettingsModal());
+    if (requestedTabId && requestedTabId !== activeTabId && TAB_RENDERERS[requestedTabId]) {
+        setActiveTab(requestedTabId);
+    }
+}
 
-    // Escape key
-    escapeHandler = (e) => {
-        if (e.key === 'Escape') closeSettingsModal();
-    };
-    $(document).on('keydown', escapeHandler);
-
-    console.log('[IGS] Settings modal opened');
+function setActiveTab(tabId) {
+    if (!TAB_RENDERERS[tabId] || tabId === activeTabId) return;
+    if (activeTabId === 'styles') selectedStyleIndex = -1;
+    if (activeTabId === 'characters') selectedCharIndex = -1;
+    if (activeTabId === 'loras') selectedLoraIndex = -1;
+    if (activeTabId === 'prompt-injection') selectedMacroIndex = -1;
+    activeTabId = tabId;
+    renderActiveTab();
 }
 
 /**
- * Closes and removes the settings modal from the DOM.
+ * Compatibility no-op; the settings panel remains mounted in the extension drawer.
  */
 export function closeSettingsModal() {
-    const modal = $('#igs_settings_modal');
-    const backdrop = $('#igs_modal_backdrop');
-
-    if (modal.length) {
-        modal.off(); // unbind all delegated events
-        modal.remove();
-    }
-    if (backdrop.length) {
-        backdrop.off();
-        backdrop.remove();
-    }
-
-    if (escapeHandler) {
-        $(document).off('keydown', escapeHandler);
-        escapeHandler = null;
-    }
-
-    modalCallbacks = null;
-    console.log('[IGS] Settings modal closed');
+    // Kept as a no-op for extension compatibility; settings remain mounted inline.
 }
 
 /**
@@ -2270,6 +2284,10 @@ export function closeSettingsModal() {
  * Useful after an external profile switch or data change.
  */
 export function refreshModalUI() {
-    if (!$('#igs_settings_modal').length) return;
+    if (!$('#igs_settings_root').length) return;
+    selectedStyleIndex = -1;
+    selectedCharIndex = -1;
+    selectedLoraIndex = -1;
+    selectedMacroIndex = -1;
     renderActiveTab();
 }

@@ -11,9 +11,8 @@ Everything is organized through a **profile system** so you can save, swap, and 
 - [Features](#features)
 - [Installation](#installation)
 - [Quick Start](#quick-start)
-- [The Suite Hub](#the-suite-hub)
+- [Inline Controls](#inline-controls)
 - [Settings Tabs](#settings-tabs)
-  - [Suite Hub Settings](#suite-hub-settings)
   - [Prompt Injection](#prompt-injection)
   - [Detection Settings](#detection-settings)
   - [Connection](#connection)
@@ -36,15 +35,15 @@ Everything is organized through a **profile system** so you can save, swap, and 
 |---------|-------------|
 | **Profile System** | Save/load/duplicate/import/export complete configurations as JSON. Switch between setups instantly. |
 | **Prompt Injection** | Configurable LLM prompt template with frequency control — tells the LLM to include image descriptions. |
-| **Custom Macros** | Define your own `{macroId}` placeholders (list, bool, int, float) and adjust them live from the Suite Hub. |
+| **Custom Macros** | Define your own `{macroId}` placeholders (list, bool, int, float) and adjust them live from the inline controls. |
 | **Regex Detection** | Customizable regex to detect image prompts in assistant messages and extract them for generation. |
 | **Connection Management** | Direct ComfyUI and A1111/Forge connection with full workflow management (create, edit, rename, delete). |
 | **Prompt Construction** | Template-based prompt building with prefix/suffix, style content, and LoRA tags — fully customizable. |
-| **Styles** | Named style profiles with preview images. Switch art styles from the hub without editing prompts. |
+| **Styles** | Named style profiles with preview images. Switch art styles from the inline controls without editing prompts. |
 | **Characters** | Define character appearances and outfits. Selected character descriptions are injected into the generation prompt. |
 | **LoRA Lorebook** | Trigger-based LoRA entries that activate when keywords appear in recent messages. Optional AI agent classification. |
 | **Image Insertion** | Multiple insert modes (in-message, new message) with LLM hiding to keep image data out of context. |
-| **Suite Hub** | A floating, dockable control panel for quick access to character/style selection, prompt tweaks, and macros. |
+| **Inline Controls** | Character/style selection, prompt additions, macros, and re-triggering in the extension drawer, alongside all settings. |
 
 ---
 
@@ -56,11 +55,11 @@ Everything is organized through a **profile system** so you can save, swap, and 
 2. Click **Install Extension**.
 3. Paste the GitHub repository URL:
    ```
-   https://github.com/maiky93/image-generation-suite
+   https://github.com/MagicAlexS/image-generation-suite
    ```
 4. Click **Save** and reload the page when prompted.
 5. Find **Image Generation Suite** in the extensions list → expand it.
-6. Check **Enable Extension** and click **Open Settings** to configure.
+6. Check **Enable Extension** and configure the settings directly in the expanded drawer.
 
 ### Method 2: Manual Installation
 
@@ -70,7 +69,7 @@ Everything is organized through a **profile system** so you can save, swap, and 
    ```
 2. Restart SillyTavern.
 3. Open **Extensions** in the top bar → find **Image Generation Suite** → expand it.
-4. Check **Enable Extension** and click **Open Settings** to configure.
+4. Check **Enable Extension** and configure the settings directly in the expanded drawer.
 
 ### Requirements
 
@@ -84,7 +83,7 @@ Everything is organized through a **profile system** so you can save, swap, and 
 ## Quick Start
 
 1. **Enable the extension** in the drawer panel.
-2. **Open Settings** → go to the **Connection** tab.
+2. Choose **Connection** in the inline settings section selector.
 3. Select your server type (ComfyUI or A1111), enter the URL, and click the connect button.
 4. Select your model, sampler, and desired resolution.
 5. Go to the **Prompt Injection** tab → enable prompt injection. The default template works out of the box.
@@ -92,18 +91,19 @@ Everything is organized through a **profile system** so you can save, swap, and 
 
 ---
 
-## The Suite Hub
+## Inline Controls
 
-The **Suite Hub** is a floating, draggable window that provides quick access to the most commonly adjusted settings without opening the full settings modal.
+All controls and settings live inside **Extensions → Image Generation Suite**. There is no separate floating Hub or settings modal. The panel follows SillyTavern's drawer scrolling and adapts to narrow screens.
 
-- **Drag** it anywhere on screen.
-- **Dock** it to the left or right edge of the viewport — it collapses into a slim sidebar tab and expands on hover.
-- **Close** it with the X button; toggle visibility with the `/suitehub` slash command or the Suite Hub Settings toggle.
+- Choose **Quick Controls** for character/style selection, prompt additions, style previews, custom macro values, and re-triggering.
+- Choose a settings section from the single section selector; switching sections does not require another window.
+- The extension menu shortcut and the existing `/suitehub` command open and scroll to this inline panel.
+- Existing profiles and imports remain compatible. Saved floating-window coordinates and visibility are retained as legacy data and no longer affect the interface.
 
 **Retrigger Image Gen** button:
 sometimes the agent forgets a quote or changes it to "pic prompt" instead of "pic", that is just something that happens. instead of having to constantly swipe messages I added this button, if you edit the agent message so the prompt is correct you can hit this button and IGS will take over and still generate your image.
 
-### Controls Tab
+### Quick Controls
 
 | Control | Description |
 |---------|-------------|
@@ -112,7 +112,7 @@ sometimes the agent forgets a quote or changes it to "pic prompt" instead of "pi
 | **Negative Addition** | Extra negative prompt text appended to every generation. |
 | **Style** | Quick-select art style from your active style profile (with preview thumbnails). |
 
-### Macros Tab
+### Macro Values
 
 Displays all custom macros you've defined in the Prompt Injection settings. Adjust values in real-time:
 - **List macros** → dropdown selector (shows label, uses substitution text)
@@ -123,14 +123,7 @@ Displays all custom macros you've defined in the Prompt Injection settings. Adju
 
 ## Settings Tabs
 
-Click **Open Settings** to access the full settings modal. Each tab is described below.
-
-### Suite Hub Settings
-
-| Setting | Description |
-|---------|-------------|
-| **Show Suite Hub Window** | Toggle the floating hub window on/off. |
-| **Show Style Previews** | Show style preview images in the hub's style dropdown. |
+Use the **Settings section** selector to move directly between quick controls and the settings sections. Each section is described below.
 
 ---
 
@@ -180,7 +173,7 @@ Configure your image generation backend.
 #### ComfyUI Workflow Management (W.I.P.)
 
 When using ComfyUI, you get full workflow CRUD (I highly recommend using the built in ST sd extension workflow editor to make edits):
-- **Edit** — Open a full-screen JSON editor for the selected workflow.
+- **Edit** — Open an inline JSON editor for the selected workflow in the Connection section.
 - **New** — Create a new empty workflow and open the editor.
 - **Rename** — Rename the selected workflow file.
 - **Delete** — Remove the selected workflow.
@@ -211,9 +204,9 @@ Named art style definitions organized into **style profiles**. Each profile can 
 | Feature | Description |
 |---------|-------------|
 | **Style Profiles** | Group styles together (e.g., "Anime Styles", "Realistic Styles"). Switch between groups per main profile. |
-| **Style Name** | Display name shown in the hub dropdown. |
+| **Style Name** | Display name shown in the inline style selector. |
 | **Style Content** | The actual prompt text inserted as `{style}` in the positive template. |
-| **Preview Image** | Optional base64 preview shown in the hub's style dropdown. |
+| **Preview Image** | Optional base64 preview shown in the inline style selector. |
 | **Import/Export** | Share style profiles as JSON files. |
 
 ---
@@ -225,7 +218,7 @@ Define character appearances for consistent image generation. Organized into **c
 | Feature | Description |
 |---------|-------------|
 | **Character Profiles** | Group characters (e.g., "Fantasy RP Characters", "Sci-Fi Characters"). Different main profiles can reference different character sets. |
-| **Character Name** | Display name shown in the hub dropdown. |
+| **Character Name** | Display name shown in the inline character selector. |
 | **Character Prompt** | The appearance description injected via the `{character}` placeholder. |
 | **Outfits** | Named outfit descriptions. All outfits are listed via the `{outfits}` placeholder so the LLM can pick one contextually. |
 
@@ -297,11 +290,11 @@ Available on the main profile bar and each sub-profile bar:
 
 ## Custom Macros
 
-Custom macros let you define dynamic `{macroId}` placeholders in your prompt injection template that can be adjusted in real-time from the Suite Hub window.
+Custom macros let you define dynamic `{macroId}` placeholders in your prompt injection template that can be adjusted in real-time from the inline macro controls.
 
 ### Macro Types
 
-| Type | Hub Control | Use Case |
+| Type | Inline Control | Use Case |
 |------|------------|----------|
 | **List** | Dropdown selector | Predefined options. Each option has a **label** (shown in dropdown) and **text** (substituted). E.g., perspectives, moods, camera angles. |
 | **Bool** | On/Off toggle | When ON, inserts the defined text. When OFF, inserts nothing. E.g., "include background description". |
@@ -341,13 +334,13 @@ Used in the **Positive Template** and **Negative Template** fields:
 |-------|-------------|---------|
 | `{prefix}` | Prompt Prefix content | Positive |
 | `{prompt}` | The raw prompt extracted from the LLM's image tag | Positive |
-| `{promptExtra}` | Hub "Prompt Addition" field | Positive |
+| `{promptExtra}` | Inline "Prompt Addition" field | Positive |
 | `{style}` / `{styles}` | Active style's content text | Positive |
 | `{loras}` | Compiled LoRA prompt tags from matched triggers | Positive |
 | `{suffix}` | Prompt Suffix content | Positive |
 | `{negativePrefix}` | Negative Prefix content | Negative |
 | `{negative}` | Any extracted negative prompt | Negative |
-| `{negativeExtra}` | Hub "Negative Addition" field | Negative |
+| `{negativeExtra}` | Inline "Negative Addition" field | Negative |
 | `{negativeSuffix}` | Negative Suffix content | Negative |
 
 ### Character Defining Macros
@@ -419,9 +412,9 @@ When using ComfyUI, you can use these placeholders in your workflow JSON. They a
 - Select or create a workflow in the Connection tab.
 - Use the workflow placeholders (see table above) in your workflow JSON nodes.
 
-**Q: The Suite Hub is missing from screen.**
-- Type `/suitehub` in the chat to toggle it.
-- Or go to Suite Hub Settings → check "Show Suite Hub Window".
+**Q: Where are the Suite Hub and settings popup?**
+- This fork combines them into the Image Generation Suite extension drawer.
+- Open **Extensions → Image Generation Suite**, use the extension menu shortcut, or type `/suitehub` to jump to the inline panel.
 
 ---
 
