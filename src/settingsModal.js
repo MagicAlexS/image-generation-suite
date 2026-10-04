@@ -62,6 +62,12 @@ import {
 } from './lora.js';
 
 import { discoverConnectionProfiles } from './lora_agent.js';
+import {
+    DEFAULT_SCENE_PROMPT,
+    DEFAULT_CHARACTER_PROMPT,
+    applyScenePromptDefaults,
+    restorePromptDefaults,
+} from './promptTemplates.js';
 
 // ============================================================
 // Module-level State
@@ -89,7 +95,7 @@ let selectedMacroIndex = -1;
 const RESERVED_MACRO_IDS = new Set([
     'prefix', 'prompt', 'style', 'styles', 'suffix', 'loras',
     'promptExtra', 'negativeExtra', 'negativePrefix', 'negative', 'negativeSuffix',
-    'character', 'outfits'
+    'character', 'characterName', 'outfits'
 ]);
 
 // ============================================================
@@ -335,7 +341,11 @@ function bindSuiteHubTab() {
 
 function renderPromptInjectionTab() {
     const profile = getActiveProfile();
-    const defaultCharDefining = '<image_generation>\\nInstead of describing {{char}} using the character description, use the following: "{character}", if applicable pick from the following outfit descriptions:\\n{outfits}\\n</image_generation>';
+    const usingSceneDefaults = profile.prompt.template === DEFAULT_SCENE_PROMPT
+        && profile.promptConstruction.characterDefining === DEFAULT_CHARACTER_PROMPT;
+    const backup = profile.promptEngineeringBackup;
+    const canRestore = typeof backup?.template === 'string'
+        && typeof backup?.characterDefining === 'string';
     const macros = profile.customMacros || [];
 
     // Build the macro list items
@@ -361,6 +371,15 @@ function renderPromptInjectionTab() {
     return `
         <div class="igs-modal-section">
             <h3>Prompt Injection</h3>
+
+            <div class="igs-modal-field">
+                <div class="igs-hint">Scene rules combine character background, ongoing story changes, consistent earlier image descriptions, and the latest scene into one complete English image description.</div>
+                <div class="igs-inline-group" style="flex-wrap: wrap;">
+                    <button type="button" id="igs_m_use_scene_defaults" class="menu_button" ${usingSceneDefaults ? 'disabled' : ''}>Use Scene Defaults</button>
+                    ${canRestore ? '<button type="button" id="igs_m_restore_prompts" class="menu_button">Restore Previous Prompts</button>' : ''}
+                </div>
+                <div class="igs-hint">Replaces both prompt fields below and keeps a saved copy for Restore Previous Prompts. Macro values and other settings stay as configured.</div>
+            </div>
 
             <div class="igs-modal-field">
                 <label class="igs-toggle-row" for="igs_m_prompt_enabled">
@@ -401,8 +420,8 @@ function renderPromptInjectionTab() {
             <div class="igs-modal-field">
                 <label class="igs-field-label" for="igs_m_character_defining">Character Defining Prompt</label>
                 <textarea id="igs_m_character_defining" class="text_pole" rows="4"
-                    placeholder="${esc(defaultCharDefining)}">${esc(profile.promptConstruction.characterDefining || '')}</textarea>
-                <div class="igs-hint">Appended to injection when a character is selected. Use {character} and {outfits}.</div>
+                    placeholder="${esc(DEFAULT_CHARACTER_PROMPT)}">${esc(profile.promptConstruction.characterDefining || '')}</textarea>
+                <div class="igs-hint">Appended for the manually selected character. Use {characterName}, {character}, and {outfits}. Background and outfit references do not override current story changes.</div>
             </div>
         </div>
 
@@ -410,7 +429,7 @@ function renderPromptInjectionTab() {
 
         <div class="igs-modal-section">
             <h3>Custom Macros</h3>
-            <div class="igs-hint" style="margin-bottom: 8px;">Define macros to use as <code>{macroId}</code> placeholders in your prompt template. Control their values from the Suite Hub window.</div>
+            <div class="igs-hint" style="margin-bottom: 8px;">Define macros to use as <code>{macroId}</code> placeholders in your prompt template. Control their values from Quick Controls.</div>
             <div class="igs-modal-list-editor">
                 <div class="igs-modal-item-list">
                     ${macroListHtml}
@@ -548,6 +567,11 @@ function validateMacroId(id, currentIndex) {
 function bindPromptInjectionTab() {
     const modal = $('#igs_settings_root');
     const profile = getActiveProfile();
+    const updateSceneDefaultsButton = () => {
+        modal.find('#igs_m_use_scene_defaults').prop('disabled',
+            profile.prompt.template === DEFAULT_SCENE_PROMPT
+            && profile.promptConstruction.characterDefining === DEFAULT_CHARACTER_PROMPT);
+    };
 
     // Standard prompt injection field bindings
     bindModalInput('igs_m_prompt_enabled', val => { profile.prompt.enabled = val; }, true);
@@ -555,10 +579,27 @@ function bindPromptInjectionTab() {
         profile.prompt.frequency = parseInt(val, 10) || 1;
         profile.prompt.messageCounter = 0;
     });
-    bindModalInput('igs_m_prompt_template', val => { profile.prompt.template = val; });
+    bindModalInput('igs_m_prompt_template', val => {
+        profile.prompt.template = val;
+        updateSceneDefaultsButton();
+    });
     bindModalInput('igs_m_prompt_position', val => { profile.prompt.position = val; });
     bindModalInput('igs_m_prompt_depth', val => { profile.prompt.depth = parseInt(val, 10) || 0; });
-    bindModalInput('igs_m_character_defining', val => { profile.promptConstruction.characterDefining = val; });
+    bindModalInput('igs_m_character_defining', val => {
+        profile.promptConstruction.characterDefining = val;
+        updateSceneDefaultsButton();
+    });
+
+    modal.on('click.igstab', '#igs_m_use_scene_defaults', () => {
+        if (!applyScenePromptDefaults(profile)) return;
+        saveProfiles();
+        renderActiveTab();
+    });
+    modal.on('click.igstab', '#igs_m_restore_prompts', () => {
+        if (!restorePromptDefaults(profile)) return;
+        saveProfiles();
+        renderActiveTab();
+    });
 
     // === Custom Macros bindings ===
 
@@ -1603,9 +1644,11 @@ function renderCharactersTab() {
                     <label class="igs-field-label">Character Prompt</label>
                     <textarea class="text_pole igs-m-char-prompt" rows="3"
                         placeholder="Describe this character for image generation...">${esc(char.prompt || '')}</textarea>
+                    <div class="igs-hint">Use a name that matches the story participant. Appearance is a starting reference; explicit story changes take priority.</div>
                 </div>
                 <div class="igs-modal-field">
                     <label class="igs-field-label">Outfits</label>
+                    <div class="igs-hint">Reference options, not proof of what is currently worn. Scene defaults follow the story instead of choosing or mixing outfits automatically.</div>
                     <div class="igs-m-outfits-container">
                         ${outfitsHtml}
                     </div>

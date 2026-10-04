@@ -1,5 +1,6 @@
 import { extension_settings } from '../../../../extensions.js';
 import { saveSettingsDebounced } from '../../../../../script.js';
+import { DEFAULT_SCENE_PROMPT, DEFAULT_CHARACTER_PROMPT, upgradePromptDefaults } from './promptTemplates.js';
 
 const EXTENSION_NAME = 'image-generation-suite';
 
@@ -15,7 +16,7 @@ export function getDefaultProfile(name) {
         name: name || 'Default',
         prompt: {
             enabled: true,
-            template: '<image_generation>\nAt the end of every assistant message, include exactly one image tag in this format:\n\n<pic=\"...\">\n\nThe prompt inside the tag is for a Krea2 image-generation model.\nThe prompt must describe only the current visible scene as a concise, natural-language description written as if giving directions to an illustrator or photographer.\nThe prompt should focus on what is visible in the image, not on storytelling or narration.\n\n[IMAGE PROMPT FORMAT]\n\nInside `<pic=\"...\">`, write one cohesive visual description.\n\nInclude, when applicable:\n\n- the visible subject(s)\n- body position and pose\n- facial expression\n- clothing currently being worn\n- camera framing\n- camera angle or perspective\n- lighting\n- environment/background\n- important visible objects\n\n\nWrite in clear, natural language using complete sentences.\nWhen appropriate, naturally describe the camera distance (close-up, medium shot, full-body, wide shot) and viewing angle (eye level, low angle, high angle, over-the-shoulder) instead of using tags.\n\nThe prompt should usually be between {minwords} and {maxwords} words.\n\nExample:\n\n<pic=\"A young adult woman sits beside a rain-streaked bedroom window during the evening, glancing over her shoulder with a shy smile. She wears an oversized cream sweater, her long brown hair falling loosely over one shoulder. The camera frames her from the waist up at a slight angle. Warm bedside lighting contrasts with the cool blue rain outside, creating a cozy atmosphere.\">\n\n[FORMAT]\n\n{perspective}\n{camera}\n{mood}\n{focus}\n{tone}\n\n[CURRENT-VISUALS-ONLY RULES]\n\n* Reset state every time.\n* Do not preserve or accumulate details from previous messages.\n* Remove outdated clothing, accessories, injuries, wetness, objects, lighting, locations, poses, or other visual elements when they are no longer visible.\n* Explicit language and body parts are allowed when they are visible and appropriate (for example: cock, penis, cunt, pussy, vulva, vagina, cum, breasts, nipples).\n* Describe only what could actually be seen within the current image.\n* Do not describe thoughts, memories, emotions that are not visually apparent, sounds, smells, sensations, or backstory.\n* Do not invent visual details that have not been established. If something is unknown, simply omit it.\n\n[WRITING STYLE]\n\nThe prompt should read naturally and cohesively.\n\nDescribe the scene as one complete visual moment rather than as a list of features.\n\nPrioritize concrete visual information over artistic adjectives.\n\nAvoid quality descriptors such as:\nmasterpiece, best quality, amazing quality, ultra detailed, absurdres, perfect anatomy, highly detailed, etc.\n\n[CONSISTENCY]\n\nDo not put `<pic=\"...\">` inside hidden reasoning, analysis, notes, or explanations.\n\nDo not wrap the image tag in markdown or a code block.\n</image_generation>',
+            template: DEFAULT_SCENE_PROMPT,
             frequency: 1,
             position: 'deep_system',
             depth: 0,
@@ -66,7 +67,7 @@ export function getDefaultProfile(name) {
             negativeSuffix: '',
             positiveTemplate: '{prefix}, {prompt}, {promptExtra}, {style}, {loras}, {suffix}',
             negativeTemplate: '{negativePrefix}, {negative}, {negativeExtra}, {negativeSuffix}',
-            characterDefining: '<image_generation>\nWhen the current character has a LoRA trigger available, use the following identifier exactly as written instead of describing the character\'s physical appearance:\n\n\"{character}\"\n\nDo not rewrite, expand, or interpret this identifier.\n\nIf outfit descriptions are available, choose whichever outfit best matches the current scene:\n\n{outfits}\n\nYou may freely combine individual clothing pieces from different outfits or omit pieces that are not currently being worn (for example footwear, jackets, gloves, legwear, accessories, etc.).\n\nOnly describe clothing, pose, facial expression, and other currently visible details separately.\n</image_generation>',
+            characterDefining: DEFAULT_CHARACTER_PROMPT,
         },
         loras: {
             depth: 1,
@@ -95,7 +96,7 @@ export function getDefaultProfile(name) {
         {
           "id": "minwords",
           "type": "int",
-          "value": 60,
+          "value": 120,
           "options": [
             {
               "label": "Option 1",
@@ -103,13 +104,13 @@ export function getDefaultProfile(name) {
             }
           ],
           "min": 20,
-          "max": 60,
+          "max": 300,
           "step": 1
         },
         {
           "id": "maxwords",
           "type": "int",
-          "value": 400,
+          "value": 500,
           "options": [
             {
               "label": "Option 1",
@@ -117,7 +118,7 @@ export function getDefaultProfile(name) {
             }
           ],
           "min": 100,
-          "max": 400,
+          "max": 1000,
           "step": 1
         },
         {
@@ -386,7 +387,11 @@ export function initSettings() {
             }
 
             if (profile.promptConstruction && typeof profile.promptConstruction.characterDefining === 'undefined') {
-                profile.promptConstruction.characterDefining = '<image_generation>\nInstead of describing {{char}} using the character description, use the following: "{character}", if applicable pick from the following outfit descriptions:\n{outfits}\n</image_generation>';
+                profile.promptConstruction.characterDefining = DEFAULT_CHARACTER_PROMPT;
+                profileChanged = true;
+            }
+
+            if (upgradePromptDefaults(profile)) {
                 profileChanged = true;
             }
 
@@ -671,6 +676,9 @@ export function importProfiles(jsonString) {
         } else {
             settings.activeProfileId = Object.keys(imported.profiles)[0];
         }
+
+        // Apply the same conservative default migration to imported profiles.
+        initSettings();
 
         saveSettingsDebounced();
         console.log('[IGS] Imported profiles successfully. Active profile:', settings.activeProfileId);

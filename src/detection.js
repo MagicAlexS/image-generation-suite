@@ -4,6 +4,7 @@ import { regexFromString } from '../../../../utils.js';
 import { getActiveProfile, getSettings, saveProfiles } from './profiles.js';
 import { scanForTriggers, compileLoraDescriptions } from './lora.js';
 import { processImageGeneration } from './insertion.js';
+import { DEFAULT_SCENE_PROMPT } from './promptTemplates.js';
 
 /**
  * @type {Function|null} Stored reference to the prompt injection handler for cleanup.
@@ -102,6 +103,21 @@ export function initDetection() {
 
             // Build injection content starting from the template
             let injectionContent = profile.prompt.template || '';
+            // A user-owned profile may have no built-in macros. Applying scene
+            // defaults should still produce usable instructions without changing
+            // that profile's macro definitions or touching custom templates.
+            if (profile.prompt.template === DEFAULT_SCENE_PROMPT) {
+                const definedMacros = new Set((profile.customMacros || []).map(macro => macro.id));
+                const fallbacks = {
+                    minwords: '120', maxwords: '500',
+                    perspective: '', camera: '', mood: '', focus: '', tone: '',
+                };
+                for (const [id, value] of Object.entries(fallbacks)) {
+                    if (!definedMacros.has(id)) {
+                        injectionContent = injectionContent.replaceAll(`{${id}}`, () => value);
+                    }
+                }
+            }
 
             // Scan for LoRA triggers in recent chat messages
             const context = getContext();
@@ -127,9 +143,6 @@ export function initDetection() {
                 if (selectedChar && selectedChar.prompt) {
                     let charDefining = profile.promptConstruction?.characterDefining || '';
                     if (charDefining) {
-                        // Resolve {character} placeholder
-                        charDefining = charDefining.replace(/\{character\}/g, selectedChar.prompt);
-
                         // Resolve {outfits} placeholder - build list of outfit descriptions
                         let outfitsList = '';
                         if (selectedChar.outfits && selectedChar.outfits.length > 0) {
@@ -138,7 +151,15 @@ export function initDetection() {
                                 .map(o => `"${o.name}, ${o.description}"`)
                                 .join(',\n');
                         }
-                        charDefining = charDefining.replace(/\{outfits\}/g, outfitsList);
+                        // Expand once so reference text remains literal, even if it
+                        // contains dollar signs or another reference placeholder.
+                        const characterReference = {
+                            characterName: selectedChar.name || '',
+                            character: selectedChar.prompt,
+                            outfits: outfitsList,
+                        };
+                        charDefining = charDefining.replace(/\{(characterName|character|outfits)\}/g,
+                            (_, key) => characterReference[key]);
 
                         injectionContent += '\n' + charDefining;
                     }
@@ -149,7 +170,7 @@ export function initDetection() {
             if (profile.customMacros && profile.customMacros.length > 0) {
                 for (const macro of profile.customMacros) {
                     const resolved = resolveCustomMacro(macro);
-                    injectionContent = injectionContent.replaceAll(`{${macro.id}}`, resolved);
+                    injectionContent = injectionContent.replaceAll(`{${macro.id}}`, () => resolved);
                 }
             }
 

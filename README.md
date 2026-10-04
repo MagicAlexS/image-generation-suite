@@ -137,7 +137,26 @@ Controls how and when the extension asks the LLM to produce image descriptions.
 | **Injection Frequency** | Generate an image every N messages (e.g., 3 = every 3rd message). |
 | **Prompt Template** | The full injection prompt sent to the LLM. Use `{macroId}` to insert custom macro values. |
 | **Position & Depth** | Where in the conversation history the injection is placed (System/User/Assistant, with depth control). |
-| **Character Defining Prompt** | Appended when a character is selected. Use `{character}` and `{outfits}` placeholders. |
+| **Character Defining Prompt** | Appended when a character is selected. Use `{characterName}`, `{character}`, and `{outfits}` placeholders. |
+
+#### Scene continuity defaults
+
+The built-in prompt asks the same chatting LLM to write one self-contained **English** image description at the end of its reply, inside a single-line `<pic="...">` tag. It uses character information already available in SillyTavern's prepared chat context, available story history, earlier image descriptions, and the latest reply. It does not make a separate scene-extraction request or maintain an independent state database.
+
+The rules distinguish background references from the current story state:
+
+1. Explicit events and changes in the current scene take priority.
+2. Earlier story facts remain valid until changed: clothing, haircuts, injuries, wetness, held objects, and the environment do not reset just because the latest sentence omits them.
+3. Earlier `<pic>` descriptions are supporting references only when consistent with the story. Narrative text corrects mistakes in older image descriptions.
+4. Character cards, the manually selected character reference, outfit options, and LoRA descriptions provide non-conflicting background defaults. They do not undo story changes or establish who is present or what outfit is currently worn.
+
+Each description depicts one moment at the end of the latest reply, with enough visible detail to stand alone: character appearance and current clothing/state, expression and gaze, pose and physical contacts, positions and spatial relationships, foreground/background, camera framing and viewpoint, time/weather, light sources and shadows. Attributes belong to individual subjects; an identity trigger does not replace appearance. Details must fit the camera's visible range, including occlusion and first-person views. Missing camera or lighting details may be completed conservatively without adding story events or new character facts.
+
+Old unmodified built-in templates upgrade automatically, including imported profiles. Custom templates (including intentionally empty ones) and existing macro values are preserved. In **Prompt Injection**, **Use Scene Defaults** applies both new templates to the current profile and saves the previous two fields; **Restore Previous Prompts** restores that saved copy, even after reloading. If a saved copy already exists, applying defaults again keeps the original copy until it is restored. These actions leave macros, frequency, injection position, connection, and generation settings unchanged.
+
+New profiles start with a 120–500 word target; existing profiles keep their configured word-count macros. Adjust the limits in Quick Controls for crowded scenes. When using the exact built-in scene template, missing word-count macros fall back to 120 and 500, and missing optional camera/style macros contribute no preference. This does not add or modify stored macros. Custom templates keep their own placeholder behavior.
+
+Only history that SillyTavern actually includes in the model request can inform continuity. The plugin keeps the original `<pic>` text in the default new-message mode, but chat truncation or host-side filtering can remove it. Stored image metadata and hidden image-only messages are not a substitute for available narrative history. More concrete descriptions reduce ambiguity; prompt rules alone do not guarantee identical images or LLM compliance.
 
 Below the injection settings is the **Custom Macros** editor — see [Custom Macros](#custom-macros) for details.
 
@@ -220,7 +239,7 @@ Define character appearances for consistent image generation. Organized into **c
 | **Character Profiles** | Group characters (e.g., "Fantasy RP Characters", "Sci-Fi Characters"). Different main profiles can reference different character sets. |
 | **Character Name** | Display name shown in the inline character selector. |
 | **Character Prompt** | The appearance description injected via the `{character}` placeholder. |
-| **Outfits** | Named outfit descriptions. All outfits are listed via the `{outfits}` placeholder so the LLM can pick one contextually. |
+| **Outfits** | Named outfit reference descriptions, listed via `{outfits}`. Scene defaults use them only when supported by the story; they do not automatically choose or mix clothing. |
 
 ---
 
@@ -320,7 +339,7 @@ The selected option's text will be substituted for `{perspective}` at injection 
 ### Reserved IDs
 
 The following macro IDs are reserved and cannot be used for custom macros:
-`prefix`, `prompt`, `style`, `styles`, `suffix`, `loras`, `promptExtra`, `negativeExtra`, `negativePrefix`, `negative`, `negativeSuffix`, `character`, `outfits`
+`prefix`, `prompt`, `style`, `styles`, `suffix`, `loras`, `promptExtra`, `negativeExtra`, `negativePrefix`, `negative`, `negativeSuffix`, `character`, `characterName`, `outfits`
 
 ---
 
@@ -349,6 +368,7 @@ Used in the **Character Defining Prompt** field:
 
 | Macro | Description |
 |-------|-------------|
+| `{characterName}` | The manually selected character's name, used to bind the reference to the matching story participant |
 | `{character}` | The selected character's prompt/appearance description |
 | `{outfits}` | Comma-separated list of all outfit descriptions for the selected character |
 
