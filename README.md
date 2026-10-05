@@ -137,12 +137,24 @@ Controls how and when the extension asks the LLM to produce image descriptions.
 | **Enable Prompt Injection** | Master toggle. When on, the prompt template is injected into the conversation. |
 | **Injection Frequency** | Generate an image every N messages (e.g., 3 = every 3rd message). |
 | **Prompt Template** | The full injection prompt sent to the LLM. Use `{macroId}` to insert custom macro values. |
+| **Image Description Format** | Choose **Natural Language** or **Tags**, then click **Apply Preset** to replace the two prompt fields. The current prompts are identified as a preset or **Custom**. |
 | **Position & Depth** | Where in the conversation history the injection is placed (System/User/Assistant, with depth control). |
 | **Character Defining Prompt** | Appended when a character is selected. Use `{characterName}`, `{character}`, and `{outfits}` placeholders. |
 
 #### Scene continuity defaults
 
-The built-in prompt asks the same chatting LLM to write one self-contained **English** image description at the end of its reply, inside a single-line `<pic="...">` tag. It uses character information already available in SillyTavern's prepared chat context, available story history, earlier image descriptions, and the latest reply. It does not make a separate scene-extraction request or maintain an independent state database.
+Both built-in presets ask the same chatting LLM to write one self-contained **English** image description at the end of its reply, inside a single-line `<pic="...">` tag. **Natural Language** uses complete sentences; **Tags** uses comma-separated keywords and short phrases. Both use character information already available in SillyTavern's prepared chat context, available story history, earlier image descriptions, and the latest reply. They do not make a separate scene-extraction request or maintain an independent state database.
+
+Both formats retain established character/person names, known work or franchise names, and explicitly supplied identity tokens. Natural language places the name in the sentence with the character's action; tags include identity alongside that subject's attributes. Names provide identity cues while the description still conveys the visible scene. Unknown identities or works must not be guessed, and a work's title does not set the current location, costume, or art style. Explicit story changes override presumed canonical appearances.
+
+For example, the two formats can represent the same moment:
+
+```text
+<pic="Hermione Granger from Harry Potter sits beside a rainy window, wearing a dark green sweater. Her hair is cut to shoulder length, and she holds an open book in both hands. An eye-level medium shot shows soft window light.">
+<pic="Hermione Granger (Harry Potter), shoulder-length hair, dark green sweater, seated beside rainy window, holding open book in both hands, eye-level medium shot, soft window light">
+```
+
+These are illustrative output formats; the model must take identities and scene details from the available context. Both continue to use the existing image-tag detection and backend prompt construction.
 
 The rules distinguish background references from the current story state:
 
@@ -153,9 +165,9 @@ The rules distinguish background references from the current story state:
 
 Each description depicts one moment at the end of the latest reply, with enough visible detail to stand alone: character appearance and current clothing/state, expression and gaze, pose and physical contacts, positions and spatial relationships, foreground/background, camera framing and viewpoint, time/weather, light sources and shadows. Attributes belong to individual subjects; an identity trigger does not replace appearance. Details must fit the camera's visible range, including occlusion and first-person views. Missing camera or lighting details may be completed conservatively without adding story events or new character facts.
 
-Old unmodified built-in templates upgrade automatically, including imported profiles. Custom templates (including intentionally empty ones) and existing macro values are preserved. In **Prompt Injection**, **Use Scene Defaults** applies both new templates to the current profile and saves the previous two fields; **Restore Previous Prompts** restores that saved copy, even after reloading. If a saved copy already exists, applying defaults again keeps the original copy until it is restored. These actions leave macros, frequency, injection position, connection, and generation settings unchanged.
+Old unmodified built-in templates upgrade automatically, including imported profiles. Custom templates (including intentionally empty ones) and existing macro values are preserved. In **Prompt Injection**, choosing a format does not change your prompt text until you click **Apply Preset**. Applying a preset replaces both prompt fields in the current profile and saves the previous two fields; **Restore Previous Prompts** restores that saved copy, even after reloading. If a saved copy already exists, applying another preset keeps the original copy until it is restored. Applied templates persist with the profile and support profile switching, duplication, and import/export. You can edit either field after applying; the current prompts then display as **Custom**. These actions leave macros, frequency, injection position, connection, and generation settings unchanged.
 
-New profiles start with a 120–500 word target; existing profiles keep their configured word-count macros. Adjust the limits in Quick Controls for crowded scenes. When using the exact built-in scene template, missing word-count macros fall back to 120 and 500, and missing optional camera/style macros contribute no preference. This does not add or modify stored macros. Custom templates keep their own placeholder behavior.
+New profiles start with the natural-language preset and a 120–500 word target; existing profiles keep their configured word-count macros. Adjust the limits in Quick Controls for crowded scenes. The tag preset uses the same scene coverage without a word-count target and does not use the minimum/maximum word-count macros. In the exact built-in natural-language template, missing word-count macros fall back to 120 and 500. In either exact built-in template, missing optional camera/style macros contribute no preference. This does not add or modify stored macros. Custom templates keep their own placeholder behavior.
 
 Only history that SillyTavern actually includes in the model request can inform continuity. The plugin keeps the original `<pic>` text in the default new-message mode, but chat truncation or host-side filtering can remove it. Stored image metadata and hidden image-only messages are not a substitute for available narrative history. More concrete descriptions reduce ambiguity; prompt rules alone do not guarantee identical images or LLM compliance.
 

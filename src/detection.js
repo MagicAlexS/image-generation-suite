@@ -4,7 +4,7 @@ import { regexFromString } from '../../../../utils.js';
 import { getActiveProfile, getSettings, saveProfiles } from './profiles.js';
 import { scanForTriggers, compileLoraDescriptions } from './lora.js';
 import { processImageGeneration } from './insertion.js';
-import { DEFAULT_SCENE_PROMPT } from './promptTemplates.js';
+import { DEFAULT_SCENE_PROMPT, TAG_SCENE_PROMPT } from './promptTemplates.js';
 
 /**
  * @type {Function|null} Stored reference to the prompt injection handler for cleanup.
@@ -106,7 +106,7 @@ export function initDetection() {
             // A user-owned profile may have no built-in macros. Applying scene
             // defaults should still produce usable instructions without changing
             // that profile's macro definitions or touching custom templates.
-            if (profile.prompt.template === DEFAULT_SCENE_PROMPT) {
+            if (profile.prompt.template === DEFAULT_SCENE_PROMPT || profile.prompt.template === TAG_SCENE_PROMPT) {
                 const definedMacros = new Set((profile.customMacros || []).map(macro => macro.id));
                 const fallbacks = {
                     minwords: '120', maxwords: '500',

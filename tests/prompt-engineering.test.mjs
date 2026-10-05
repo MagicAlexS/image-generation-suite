@@ -5,10 +5,16 @@ import { webcrypto } from 'node:crypto';
 import {
     DEFAULT_SCENE_PROMPT,
     DEFAULT_CHARACTER_PROMPT,
+    TAG_SCENE_PROMPT,
+    TAG_CHARACTER_PROMPT,
+    PREVIOUS_DEFAULT_SCENE_PROMPT,
+    PREVIOUS_DEFAULT_CHARACTER_PROMPT,
+    getPromptPreset,
     LEGACY_DEFAULT_SCENE_PROMPT,
     LEGACY_DEFAULT_CHARACTER_PROMPT_LORA,
     LEGACY_DEFAULT_CHARACTER_PROMPT_GENERIC,
     upgradePromptDefaults,
+    applyPromptPreset,
     applyScenePromptDefaults,
     restorePromptDefaults,
 } from '../src/promptTemplates.js';
@@ -43,6 +49,24 @@ test('migration recognizes the other historical character default', () => {
     const profile = { promptConstruction: { characterDefining: LEGACY_DEFAULT_CHARACTER_PROMPT_GENERIC } };
     assert.equal(upgradePromptDefaults(profile), true);
     assert.equal(profile.promptConstruction.characterDefining, DEFAULT_CHARACTER_PROMPT);
+});
+
+test('migration upgrades the exact previous natural preset snapshots and leaves tag presets intact', () => {
+    const previousNatural = {
+        prompt: { template: PREVIOUS_DEFAULT_SCENE_PROMPT },
+        promptConstruction: { characterDefining: PREVIOUS_DEFAULT_CHARACTER_PROMPT },
+    };
+    assert.equal(upgradePromptDefaults(previousNatural), true);
+    assert.equal(getPromptPreset(previousNatural), 'natural');
+    assert.equal(previousNatural.prompt.template, DEFAULT_SCENE_PROMPT);
+    assert.equal(previousNatural.promptConstruction.characterDefining, DEFAULT_CHARACTER_PROMPT);
+    assert.equal(upgradePromptDefaults(previousNatural), false);
+
+    const tags = { prompt: { template: TAG_SCENE_PROMPT }, promptConstruction: { characterDefining: TAG_CHARACTER_PROMPT } };
+    assert.equal(upgradePromptDefaults(tags), false);
+    assert.equal(getPromptPreset(tags), 'tags');
+    assert.equal(tags.prompt.template, TAG_SCENE_PROMPT);
+    assert.equal(tags.promptConstruction.characterDefining, TAG_CHARACTER_PROMPT);
 });
 
 test('migration fills absent fields while preserving empty and customized text', () => {
@@ -85,6 +109,33 @@ test('explicit apply preserves the first backup and restore removes it', () => {
     assert.equal(profile.promptConstruction.characterDefining, 'backup');
     assert.equal('promptEngineeringBackup' in profile, false);
     assert.equal(restorePromptDefaults(profile), false);
+});
+
+test('both presets share the first backup across switching and restore the original text', () => {
+    const profile = {
+        prompt: { template: 'custom scene' },
+        promptConstruction: { characterDefining: 'custom character' },
+    };
+    assert.equal(applyPromptPreset(profile, 'tags'), true);
+    assert.equal(getPromptPreset(profile), 'tags');
+    assert.deepEqual(profile.promptEngineeringBackup, {
+        template: 'custom scene', characterDefining: 'custom character',
+    });
+    assert.equal(applyPromptPreset(profile, 'natural'), true);
+    assert.equal(getPromptPreset(profile), 'natural');
+    assert.deepEqual(profile.promptEngineeringBackup, {
+        template: 'custom scene', characterDefining: 'custom character',
+    });
+    assert.equal(restorePromptDefaults(profile), true);
+    assert.equal(profile.prompt.template, 'custom scene');
+    assert.equal(profile.promptConstruction.characterDefining, 'custom character');
+    assert.equal(getPromptPreset(profile), null);
+    assert.equal(applyPromptPreset(profile, 'unknown'), false);
+    for (const invalidId of ['__proto__', 'toString']) {
+        const before = structuredClone(profile);
+        assert.equal(applyPromptPreset(profile, invalidId), false);
+        assert.deepEqual(profile, before, `${invalidId} must not mutate the profile`);
+    }
 });
 
 test('initSettings migrates exact legacy profile text but keeps custom profiles intact', async () => {
@@ -143,6 +194,32 @@ test('importProfiles immediately migrates imported exact legacy defaults', async
     assert.equal(profiles.legacy.promptConstruction.characterDefining, DEFAULT_CHARACTER_PROMPT);
     assert.equal(profiles.custom.prompt.template, 'custom survives import');
     assert.equal(profiles.custom.promptConstruction.characterDefining, 'custom character survives import');
+});
+
+test('tag preset survives settings initialization and profile import', async () => {
+    const { extensionSettings, initSettings, importProfiles } = await loadProfilesModule();
+    extensionSettings['image-generation-suite'] = createMigratableSettings({
+        legacyTemplate: TAG_SCENE_PROMPT,
+        legacyCharacter: TAG_CHARACTER_PROMPT,
+        customTemplate: 'custom template',
+        customCharacter: 'custom character',
+    });
+    initSettings();
+    let profiles = extensionSettings['image-generation-suite'].profiles;
+    assert.equal(getPromptPreset(profiles.legacy), 'tags');
+    assert.equal(profiles.legacy.prompt.template, TAG_SCENE_PROMPT);
+
+    const importedSettings = createMigratableSettings({
+        legacyTemplate: TAG_SCENE_PROMPT,
+        legacyCharacter: TAG_CHARACTER_PROMPT,
+        customTemplate: 'custom survives import',
+        customCharacter: 'custom character survives import',
+    });
+    assert.equal(importProfiles(JSON.stringify(importedSettings)), true);
+    profiles = extensionSettings['image-generation-suite'].profiles;
+    assert.equal(getPromptPreset(profiles.legacy), 'tags');
+    assert.equal(profiles.legacy.promptConstruction.characterDefining, TAG_CHARACTER_PROMPT);
+    assert.equal(profiles.custom.prompt.template, 'custom survives import');
 });
 
 function createMigratableSettings({ legacyTemplate, legacyCharacter, customTemplate, customCharacter }) {

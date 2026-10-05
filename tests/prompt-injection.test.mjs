@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { TAG_SCENE_PROMPT, TAG_CHARACTER_PROMPT } from '../src/promptTemplates.js';
 
 // Exercise the real profiles, LoRA matching, and event handlers with only
 // SillyTavern host services and the image backend replaced by local doubles.
@@ -156,6 +157,30 @@ test('scene defaults work without optional macros while custom templates retain 
     assert.equal(custom.chat[0].content, 'My custom {minwords} and {camera}');
 });
 
+test('tag preset injects tag-specific rules, preserves identity names, and resolves built-in macros', async () => {
+    const { settings, profile } = reset();
+    profile.prompt.template = TAG_SCENE_PROMPT;
+    profile.promptConstruction.characterDefining = TAG_CHARACTER_PROMPT;
+    profile.customMacros = [];
+    profile.activeCharacterId = 'ada';
+    settings.characterProfiles[profile.activeCharacterProfileId].characters = [{
+        id: 'ada', name: 'Ada Lovelace from Analytical Engine Tales',
+        prompt: 'woman mathematician, dark curls, white collar', outfits: [],
+    }];
+
+    const request = { chat: [] };
+    await state.handlers.get('prompt')(request);
+    const content = request.chat.at(-1).content;
+    assert.ok(content.includes('comma-separated English tag list on one line'));
+    assert.ok(content.includes('not sentences, prose'));
+    assert.ok(content.includes('Do not use a word-count target'));
+    assert.ok(!content.includes('{minwords}') && !content.includes('{maxwords}'));
+    assert.ok(!content.includes('120 to 500'));
+    assert.ok(content.includes('Ada Lovelace from Analytical Engine Tales'));
+    assert.ok(content.includes('woman mathematician, dark curls, white collar'));
+    assert.ok(!/\{(?:characterName|character|outfits|minwords|maxwords|perspective|camera|mood|focus|tone)\}/.test(content));
+});
+
 test('a single-line English description is still extracted by the unchanged default regex', async () => {
     const { profile } = reset();
     const description = 'An adult woman with brown eyes and short red hair stands at the open door in a black coat, her right hand on the handle. An eye-level medium shot shows warm evening light falling from the room behind her.';
@@ -166,4 +191,15 @@ test('a single-line English description is still extracted by the unchanged defa
     assert.equal(state.generations.length, 1);
     assert.deepEqual(state.generations[0], [profile, description, 0, tag]);
     assert.equal(state.chat[0].mes, `She opens the door.\n${tag}`);
+});
+
+test('comma-separated tag output is extracted and passed unchanged to image generation', async () => {
+    const { profile } = reset();
+    const description = 'Ada Lovelace, Analytical Engine Tales, dark curls, white collar, rainy library, medium shot, warm window light';
+    const tag = `<pic="${description}">`;
+    state.chat = [{ is_user: false, mes: `She studies the brass machine.\n${tag}` }];
+    state.handlers.get('message')(0);
+    await new Promise(resolve => setTimeout(resolve, 20));
+    assert.equal(state.generations.length, 1);
+    assert.deepEqual(state.generations[0], [profile, description, 0, tag]);
 });

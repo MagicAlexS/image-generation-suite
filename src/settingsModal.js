@@ -63,9 +63,10 @@ import {
 
 import { discoverConnectionProfiles } from './lora_agent.js';
 import {
-    DEFAULT_SCENE_PROMPT,
     DEFAULT_CHARACTER_PROMPT,
-    applyScenePromptDefaults,
+    PROMPT_PRESETS,
+    getPromptPreset,
+    applyPromptPreset,
     restorePromptDefaults,
 } from './promptTemplates.js';
 
@@ -353,8 +354,8 @@ function bindSuiteHubTab() {
 
 function renderPromptInjectionTab() {
     const profile = getActiveProfile();
-    const usingSceneDefaults = profile.prompt.template === DEFAULT_SCENE_PROMPT
-        && profile.promptConstruction.characterDefining === DEFAULT_CHARACTER_PROMPT;
+    const currentPreset = getPromptPreset(profile);
+    const selectedPreset = currentPreset || 'natural';
     const backup = profile.promptEngineeringBackup;
     const canRestore = typeof backup?.template === 'string'
         && typeof backup?.characterDefining === 'string';
@@ -418,19 +419,25 @@ function renderPromptInjectionTab() {
 
             ${renderSettingsGroup('Prompt template', `
             <div class="igs-modal-field">
-                <div class="igs-hint">Scene rules combine character background, ongoing story changes, consistent earlier image descriptions, and the latest scene into one complete English image description.</div>
+                <label class="igs-field-label" for="igs_m_prompt_preset">Image Description Format</label>
+                <select id="igs_m_prompt_preset" class="text_pole">
+                    ${Object.entries(PROMPT_PRESETS).map(([id, preset]) => `<option value="${esc(id)}" ${selectedPreset === id ? 'selected' : ''}>${esc(preset.label)}</option>`).join('')}
+                </select>
+                <div id="igs_m_prompt_preset_status" class="igs-hint" role="status">Current prompts: ${currentPreset ? esc(PROMPT_PRESETS[currentPreset].label) : 'Custom'}.</div>
+                <div class="igs-hint">Natural language uses complete sentences; tags use comma-separated English keywords. Both preserve known character names and works, along with the current scene and story changes.</div>
                 <div class="igs-inline-group" style="flex-wrap: wrap;">
-                    <button type="button" id="igs_m_use_scene_defaults" class="menu_button" ${usingSceneDefaults ? 'disabled' : ''}>Use Scene Defaults</button>
+                    <button type="button" id="igs_m_use_scene_defaults" class="menu_button" ${currentPreset === selectedPreset ? 'disabled' : ''}>Apply Preset</button>
                     ${canRestore ? '<button type="button" id="igs_m_restore_prompts" class="menu_button">Restore Previous Prompts</button>' : ''}
                 </div>
-                <div class="igs-hint">Replaces both prompt fields below and keeps a saved copy for Restore Previous Prompts. Macro values and other settings stay as configured.</div>
+                <div class="igs-hint">Apply replaces both prompt fields below. Your first previous version is saved for Restore Previous Prompts, even after switching presets. You can edit either field after applying.</div>
+                <div class="igs-hint">Word-count macros set the length target for natural language. Tags use the same scene coverage without padding to a word count. Other macro values and settings stay as configured.</div>
             </div>
             <div class="igs-modal-field">
                 <label class="igs-field-label" for="igs_m_prompt_template">Prompt Template</label>
                 <textarea id="igs_m_prompt_template" class="text_pole" rows="4">${esc(profile.prompt.template)}</textarea>
                 <div class="igs-hint">The injection prompt sent to the LLM. Use {macroId} to insert custom macro values.</div>
             </div>
-            `, 'Set the instruction sent to the language model. Scene defaults can be restored from the saved previous version.')}
+            `, 'Choose and apply a format preset, or edit the instructions sent to the language model.')}
 
             ${renderSettingsGroup('Character reference', `
             <div class="igs-modal-field">
@@ -587,10 +594,12 @@ function validateMacroId(id, currentIndex) {
 function bindPromptInjectionTab() {
     const modal = $('#igs_settings_root');
     const profile = getActiveProfile();
-    const updateSceneDefaultsButton = () => {
+    const updatePresetControls = () => {
+        const currentPreset = getPromptPreset(profile);
         modal.find('#igs_m_use_scene_defaults').prop('disabled',
-            profile.prompt.template === DEFAULT_SCENE_PROMPT
-            && profile.promptConstruction.characterDefining === DEFAULT_CHARACTER_PROMPT);
+            currentPreset === modal.find('#igs_m_prompt_preset').val());
+        modal.find('#igs_m_prompt_preset_status').text(
+            `Current prompts: ${currentPreset ? PROMPT_PRESETS[currentPreset].label : 'Custom'}.`);
     };
 
     // Standard prompt injection field bindings
@@ -601,17 +610,18 @@ function bindPromptInjectionTab() {
     });
     bindModalInput('igs_m_prompt_template', val => {
         profile.prompt.template = val;
-        updateSceneDefaultsButton();
+        updatePresetControls();
     });
     bindModalInput('igs_m_prompt_position', val => { profile.prompt.position = val; });
     bindModalInput('igs_m_prompt_depth', val => { profile.prompt.depth = parseInt(val, 10) || 0; });
     bindModalInput('igs_m_character_defining', val => {
         profile.promptConstruction.characterDefining = val;
-        updateSceneDefaultsButton();
+        updatePresetControls();
     });
 
+    modal.on('change.igstab', '#igs_m_prompt_preset', updatePresetControls);
     modal.on('click.igstab', '#igs_m_use_scene_defaults', () => {
-        if (!applyScenePromptDefaults(profile)) return;
+        if (!applyPromptPreset(profile, modal.find('#igs_m_prompt_preset').val())) return;
         saveProfiles();
         renderActiveTab();
     });
