@@ -5,6 +5,7 @@ import { getMessageTimeStamp } from '../../../../RossAscends-mods.js';
 import { generateImage } from './connection.js';
 import { scanForTriggers, compileLoraPrompts } from './lora.js';
 import { getSettings, getActiveProfile } from './profiles.js';
+import { tr } from './i18n.js';
 
 /**
  * Compiles prompt template configurations, active style selections, and LoRA triggers into final generation strings.
@@ -249,7 +250,7 @@ export async function processImageGeneration(profile, rawPrompt, messageIndex, o
     const result = await generateImage(profile, fullPositivePrompt, fullNegativePrompt);
 
     if (!result || !result.data) {
-        throw new Error('Image generation returned no data');
+        throw new Error(tr('igs.generation.noData', 'Image generation returned no data'));
     }
 
     // Save the base64 image to a file and get the URL

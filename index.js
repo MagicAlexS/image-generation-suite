@@ -22,6 +22,7 @@ import { openSettingsModal, refreshModalUI } from './src/settingsModal.js';
 
 import { eventSource, event_types } from '../../../../script.js';
 import { getContext } from '../../../extensions.js';
+import { tr, localizeHtml } from './src/i18n.js';
 
 import { SlashCommandParser } from '../../../slash-commands/SlashCommandParser.js';
 import { SlashCommand } from '../../../slash-commands/SlashCommand.js';
@@ -55,14 +56,14 @@ function populateFloatingCharacterSelect() {
     if (!select.length) return;
     select.empty();
 
-    select.append($('<option>', { value: '', text: '(None)' }));
+    select.append($('<option>', { value: '', text: tr('igs.common.none', '(None)') }));
 
     const charProfileId = profile?.activeCharacterProfileId;
     const charProfile = charProfileId && settings.characterProfiles?.[charProfileId];
     const characters = charProfile?.characters || [];
 
     characters.forEach(char => {
-        select.append($('<option>', { value: char.id, text: char.name || '(Unnamed)' }));
+        select.append($('<option>', { value: char.id, text: char.name || tr('igs.character.unnamed', '(Unnamed)') }));
     });
 
     select.val(profile?.activeCharacterId || '');
@@ -84,11 +85,11 @@ function populateFloatingStyleSelect() {
     
     container.append(`
         <div class="igs-custom-select-option${activeStyle === 'Default' ? ' selected' : ''}" data-value="Default">
-            Default (No Style)
+            ${tr('igs.style.defaultNoStyle', 'Default (No Style)')}
         </div>
     `);
 
-    let selectedText = 'Default (No Style)';
+    let selectedText = tr('igs.style.defaultNoStyle', 'Default (No Style)');
 
     if (profile && profile.activeStyleProfileId && settings.styleProfiles) {
         const stylesProfile = settings.styleProfiles[profile.activeStyleProfileId];
@@ -122,7 +123,7 @@ function populateHubMacros() {
     const macros = profile?.customMacros || [];
 
     if (macros.length === 0) {
-        container.html('<div class="igs-hub-macros-empty"><small>No custom macros defined.<br>Add them in Settings → Prompt Injection.</small></div>').show();
+        container.html(`<div class="igs-hub-macros-empty"><small>${tr('igs.hub.macros.empty', 'No custom macros defined.')}<br>${tr('igs.hub.macros.emptyHelp', 'Add them in Settings → Prompt Injection.')}</small></div>`).show();
         return;
     }
 
@@ -137,9 +138,9 @@ function populateHubMacros() {
                 (macro.options || []).forEach((opt, oi) => {
                     let displayLabel;
                     if (typeof opt === 'object') {
-                        displayLabel = opt.label || opt.text || `Option ${oi + 1}`;
+                        displayLabel = opt.label || opt.text || tr('igs.hub.macro.option', 'Option {number}', { number: oi + 1 });
                     } else {
-                        displayLabel = opt || `Option ${oi + 1}`;
+                        displayLabel = opt || tr('igs.hub.macro.option', 'Option {number}', { number: oi + 1 });
                     }
                     if (displayLabel.length > 40) displayLabel = displayLabel.substring(0, 37) + '...';
                     html += `<option value="${oi}" ${macro.value === oi ? 'selected' : ''}>${displayLabel}</option>`;
@@ -149,7 +150,7 @@ function populateHubMacros() {
             case 'bool':
                 html += `<label class="igs-hub-macro-bool">`;
                 html += `<input type="checkbox" class="checkbox igs-hub-macro-checkbox" data-macro-index="${i}" ${macro.value ? 'checked' : ''}>`;
-                html += `<small>${macro.value ? 'ON' : 'OFF'}</small>`;
+                html += `<small>${macro.value ? tr('igs.common.on', 'ON') : tr('igs.common.off', 'OFF')}</small>`;
                 html += `</label>`;
                 break;
             case 'int':
@@ -196,8 +197,8 @@ function registerSlashCommand() {
     SlashCommandParser.addCommandObject(SlashCommand.fromProps({
         name: 'suitehub',
         aliases: ['igs-hub'],
-        returns: 'opens the Image Generation Suite quick controls',
-        helpString: 'Opens the Image Generation Suite quick controls in the extension drawer.',
+        returns: tr('igs.command.hub.returns', 'opens the Image Generation Suite quick controls'),
+        helpString: tr('igs.command.hub.help', 'Opens the Image Generation Suite quick controls in the extension drawer.'),
         callback: () => {
             revealExtensionSettings(() => {
                 openSettingsModal(getSettingsCallbacks(), 'suite-hub');
@@ -211,8 +212,8 @@ function registerSlashCommand() {
     SlashCommandParser.addCommandObject(SlashCommand.fromProps({
         name: 'suitetrigger',
         aliases: ['igs-trigger'],
-        returns: 're-reads the latest character message to scan for tags and generate images',
-        helpString: 'Re-scans the latest character message for image tags and runs generation.',
+        returns: tr('igs.command.trigger.returns', 're-reads the latest character message to scan for tags and generate images'),
+        helpString: tr('igs.command.trigger.help', 'Re-scans the latest character message for image tags and runs generation.'),
         callback: () => {
             triggerDetection();
             return '';
@@ -295,7 +296,7 @@ function setupProfileEvents() {
     });
 
     $('#igs_profile_add').on('click', function () {
-        const name = prompt('Enter a name for the new profile:');
+        const name = prompt(tr('igs.profile.prompt.newName', 'Enter a name for the new profile:'));
         if (!name || name.trim() === '') return;
         createProfile(name.trim());
         updateUIValues();
@@ -311,7 +312,7 @@ function setupProfileEvents() {
     $('#igs_profile_rename').on('click', function () {
         const profile = getActiveProfile();
         if (!profile) return;
-        const newName = prompt('Enter a new name for the profile:', profile.name);
+        const newName = prompt(tr('igs.profile.prompt.rename', 'Enter a new name for the profile:'), profile.name);
         if (!newName || newName.trim() === '' || newName.trim() === profile.name) return;
         renameProfile(profile.id, newName.trim());
         updateUIValues();
@@ -320,7 +321,7 @@ function setupProfileEvents() {
     $('#igs_profile_delete').on('click', function () {
         const profile = getActiveProfile();
         if (!profile) return;
-        if (confirm(`Are you sure you want to delete profile "${profile.name}"?`)) {
+        if (confirm(tr('igs.profile.confirm.delete', 'Are you sure you want to delete profile "{name}"?', { name: profile.name }))) {
             deleteProfile(profile.id);
             updateUIValues();
         }
@@ -342,7 +343,7 @@ function setupProfileEvents() {
         reader.onload = function (evt) {
             const success = importProfiles(evt.target.result);
             if (success) {
-                toastr.success('Profiles imported successfully!');
+                toastr.success(tr('igs.profile.import.success', 'Profiles imported successfully!'));
                 updateUIValues();
             }
             $('#igs_profile_import_file').val('');
@@ -454,7 +455,7 @@ function setupUI() {
         const profile = getActiveProfile();
         if (profile.customMacros && profile.customMacros[idx]) {
             profile.customMacros[idx].value = $(this).prop('checked');
-            $(this).siblings('small').text(profile.customMacros[idx].value ? 'ON' : 'OFF');
+            $(this).siblings('small').text(profile.customMacros[idx].value ? tr('igs.common.on', 'ON') : tr('igs.common.off', 'OFF'));
             saveProfiles();
         }
     });
@@ -488,12 +489,12 @@ $(function () {
         const settingsHtml = await $.get(`${extensionFolderPath}/settings.html`);
 
         // Append extension to main settings menu dropdown
-        $('#extensionsMenu').append(`
+        $('#extensionsMenu').append(localizeHtml(`
             <div id="igs_extension_menu" class="list-group-item flex-container flexGap5">
                 <div class="fa-solid fa-image"></div>
-                <span data-i18n="Image Generation Suite">Image Gen Suite</span>
+                <span data-i18n="igs.app.menu">Image Gen Suite</span>
             </div>
-        `);
+        `));
 
         // Click handler to open the extensions drawer and scroll to the settings panel
         $('#igs_extension_menu').on('click', function () {
@@ -506,11 +507,11 @@ $(function () {
         }
 
         // Insert settings panel HTML content
-        $('#igs_settings_container').empty().append(settingsHtml);
+        $('#igs_settings_container').empty().append(localizeHtml(settingsHtml));
 
         // Inject floating hover tooltip for dropdown previews
         if (!$('#igs_dropdown_preview_tooltip').length) {
-            $('body').append('<div id="igs_dropdown_preview_tooltip" style="display:none;"><img src="" alt="Preview"></div>');
+            $('body').append(localizeHtml('<div id="igs_dropdown_preview_tooltip" style="display:none;"><img src="" alt="Preview" data-i18n="[alt]igs.preview.alt"></div>'));
         }
 
         // Register slash commands

@@ -262,7 +262,8 @@ async function loadProfilesModule() {
     const rewritten = source
         .replace("import { extension_settings } from '../../../../extensions.js';", `import { extension_settings } from '${extensionStubUrl}';`)
         .replace("import { saveSettingsDebounced } from '../../../../../script.js';", `import { saveSettingsDebounced } from '${scriptStubUrl}';`)
-        .replace("from './promptTemplates.js';", `from '${templatesUrl}';`);
+        .replace("from './promptTemplates.js';", `from '${templatesUrl}';`)
+        .replace("from './i18n.js';", `from '${new URL('../src/i18n.js', import.meta.url).href}';`);
 
     globalThis.__igsSaveCount = 0;
     globalThis.toastr = { error() {}, warning() {}, success() {} };

@@ -28,10 +28,12 @@ const hostURL = moduleURL(`
     }
 `);
 const templatesURL = moduleURL(await source('promptTemplates.js'));
+const i18nURL = moduleURL(await source('i18n.js'));
 const profilesURL = moduleURL((await source('profiles.js'))
     .replaceAll("'../../../../extensions.js'", JSON.stringify(hostURL))
     .replaceAll("'../../../../../script.js'", JSON.stringify(hostURL))
-    .replaceAll("'./promptTemplates.js'", JSON.stringify(templatesURL)));
+    .replaceAll("'./promptTemplates.js'", JSON.stringify(templatesURL))
+    .replaceAll("'./i18n.js'", JSON.stringify(i18nURL)));
 const classifierURL = moduleURL(`export async function classifySceneWithLLM() {
     globalThis.__igsPromptInjectionTest.classifications++;
     throw new Error('The ordinary scene injection must not call a separate LLM');
@@ -50,6 +52,7 @@ const detectionURL = moduleURL((await source('detection.js'))
     .replaceAll("'./profiles.js'", JSON.stringify(profilesURL))
     .replaceAll("'./lora.js'", JSON.stringify(loraURL))
     .replaceAll("'./promptTemplates.js'", JSON.stringify(templatesURL))
+    .replaceAll("'./i18n.js'", JSON.stringify(i18nURL))
     .replaceAll("'./insertion.js'", JSON.stringify(insertionURL)));
 const profiles = await import(profilesURL);
 const detection = await import(detectionURL);

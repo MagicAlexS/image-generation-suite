@@ -5,6 +5,7 @@ import { getActiveProfile, getSettings, saveProfiles } from './profiles.js';
 import { scanForTriggers, compileLoraDescriptions } from './lora.js';
 import { processImageGeneration } from './insertion.js';
 import { DEFAULT_SCENE_PROMPT, TAG_SCENE_PROMPT } from './promptTemplates.js';
+import { tr } from './i18n.js';
 
 /**
  * @type {Function|null} Stored reference to the prompt injection handler for cleanup.
@@ -258,7 +259,7 @@ export function initDetection() {
             // Use setTimeout to avoid blocking the UI
             setTimeout(async () => {
                 try {
-                    toastr.info(`Generating ${allMatches.length} image(s)...`);
+                    toastr.info(tr('igs.detection.generating', 'Generating {count} image(s)...', { count: allMatches.length }));
 
                     for (const match of allMatches) {
                         // Extract prompt from capture group 1
@@ -269,10 +270,10 @@ export function initDetection() {
                         await processImageGeneration(profile, prompt, actualMessageIndex, originalTag);
                     }
 
-                    toastr.success('Image(s) generated!');
+                    toastr.success(tr('igs.detection.generated', 'Image(s) generated!'));
                 } catch (error) {
                     console.error('[IGS] Error generating images:', error);
-                    toastr.error('Failed to generate image(s): ' + error.message);
+                    toastr.error(tr('igs.detection.generationFailed', 'Failed to generate image(s): {message}', { message: error.message }));
                 }
             }, 0);
         } catch (error) {
@@ -295,20 +296,20 @@ export function initDetection() {
 export function triggerDetection(targetIndex = null) {
     const profile = getActiveProfile();
     if (!profile) {
-        toastr.warning('No active profile.');
-        return 'No active profile.';
+        toastr.warning(tr('igs.detection.noActiveProfile', 'No active profile.'));
+        return tr('igs.detection.noActiveProfile', 'No active profile.');
     }
 
     if (!profile.settings || profile.settings.insertType === 'disabled') {
-        toastr.warning('Detection is disabled in active profile settings.');
-        return 'Detection is disabled.';
+        toastr.warning(tr('igs.detection.disabled', 'Detection is disabled in active profile settings.'));
+        return tr('igs.detection.disabledShort', 'Detection is disabled.');
     }
 
     const context = getContext();
     const chat = context.chat || [];
     if (chat.length === 0) {
-        toastr.warning('Chat is empty.');
-        return 'Chat is empty.';
+        toastr.warning(tr('igs.detection.chatEmpty', 'Chat is empty.'));
+        return tr('igs.detection.chatEmpty', 'Chat is empty.');
     }
 
     let actualIndex = targetIndex;
@@ -323,21 +324,21 @@ export function triggerDetection(targetIndex = null) {
     }
 
     if (actualIndex === null || typeof chat[actualIndex] === 'undefined') {
-        toastr.warning('Could not find any character messages to scan.');
-        return 'No character messages found.';
+        toastr.warning(tr('igs.detection.noCharacterMessages', 'Could not find any character messages to scan.'));
+        return tr('igs.detection.noCharacterMessagesShort', 'No character messages found.');
     }
 
     const message = chat[actualIndex];
     const regexStr = profile.settings.regex;
     if (!regexStr) {
-        toastr.warning('No detection regex configured.');
-        return 'No detection regex.';
+        toastr.warning(tr('igs.detection.noRegex', 'No detection regex configured.'));
+        return tr('igs.detection.noRegexShort', 'No detection regex.');
     }
 
     const regex = regexFromString(regexStr);
     if (!regex) {
-        toastr.error('Failed to parse detection regex.');
-        return 'Failed to parse regex.';
+        toastr.error(tr('igs.detection.regexParseFailed', 'Failed to parse detection regex.'));
+        return tr('igs.detection.regexParseFailedShort', 'Failed to parse regex.');
     }
 
     const globalRegex = new RegExp(regex.source, regex.flags.includes('g') ? regex.flags : regex.flags + 'g');
@@ -345,28 +346,28 @@ export function triggerDetection(targetIndex = null) {
     const allMatches = [...messageText.matchAll(globalRegex)];
 
     if (allMatches.length === 0) {
-        toastr.info('No image tags found in the latest character message.');
-        return 'No matches found.';
+        toastr.info(tr('igs.detection.noTags', 'No image tags found in the latest character message.'));
+        return tr('igs.detection.noMatches', 'No matches found.');
     }
 
     console.log('[IGS] Manual trigger: found', allMatches.length, 'tags in message', actualIndex);
     
     setTimeout(async () => {
         try {
-            toastr.info(`Generating ${allMatches.length} image(s)...`);
+            toastr.info(tr('igs.detection.generating', 'Generating {count} image(s)...', { count: allMatches.length }));
             for (const match of allMatches) {
                 const prompt = match[1] || '';
                 const originalTag = match[0];
                 await processImageGeneration(profile, prompt, actualIndex, originalTag);
             }
-            toastr.success('Image(s) generated!');
+            toastr.success(tr('igs.detection.generated', 'Image(s) generated!'));
         } catch (error) {
             console.error('[IGS] Manual trigger error:', error);
-            toastr.error('Failed to generate image(s): ' + error.message);
+            toastr.error(tr('igs.detection.generationFailed', 'Failed to generate image(s): {message}', { message: error.message }));
         }
     }, 0);
 
-    return 'Triggered detection.';
+    return tr('igs.detection.triggered', 'Triggered detection.');
 }
 
 /**

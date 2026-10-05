@@ -78,6 +78,25 @@ Everything is organized through a **profile system** so you can save, swap, and 
 - For A1111: launch with `--api` flag
 - For ComfyUI: default setup works out of the box
 
+### Interface language
+
+The extension follows SillyTavern's interface language automatically. English and
+Simplified Chinese (`zh-cn`) are supported. Select Simplified Chinese in
+SillyTavern's language settings; the extension applies the translation when
+SillyTavern reloads. Unsupported languages and missing translations fall back to
+English. No separate extension language setting is needed.
+
+Only interface labels, help, status messages, and operation prompts are
+translated. Saved profile/style/character names, custom macros, workflows,
+backend identifiers, and image-generation prompt templates keep their original
+values. Both built-in prompt formats continue to request English image
+descriptions or tags.
+
+To add a language, register a JSON catalog under `manifest.json`'s `i18n` field
+and use the existing `igs.*` keys from `locales/zh-cn.json`. New UI text should
+use `tr(key, englishFallback, params)` or mark a text leaf/attribute with
+`data-i18n`; pass generated HTML through `localizeHtml()` before mounting it.
+
 ---
 
 ## Quick Start

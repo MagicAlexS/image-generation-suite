@@ -1,4 +1,5 @@
 import { getRequestHeaders } from '../../../../../script.js';
+import { tr } from './i18n.js';
 
 /**
  * Tests connectivity to a ComfyUI or A1111 backend.
@@ -27,16 +28,16 @@ export async function testConnection(serverType, url, auth) {
         });
 
         if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            throw new Error(tr('igs.error.httpStatus', 'HTTP {status}: {statusText}', { status: response.status, statusText: response.statusText }));
         }
 
         const label = serverType === 'comfy' ? 'ComfyUI' : 'A1111';
-        toastr.success(`Connected to ${label}!`);
+        toastr.success(tr('igs.connection.success', 'Connected to {label}!', { label }));
         console.log('[IGS]', `Connection test to ${label} succeeded`);
         return true;
     } catch (error) {
         console.error('[IGS]', 'Connection test failed:', error);
-        toastr.error('Connection failed: ' + error.message);
+        toastr.error(tr('igs.connection.failed', 'Connection failed: {message}', { message: error.message }));
         return false;
     }
 }
@@ -68,7 +69,7 @@ export async function loadModels(serverType, url, auth) {
         });
 
         if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            throw new Error(tr('igs.error.httpStatus', 'HTTP {status}: {statusText}', { status: response.status, statusText: response.statusText }));
         }
 
         const data = await response.json();
@@ -107,7 +108,7 @@ export async function loadVaes(serverType, url, auth) {
         });
 
         if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            throw new Error(tr('igs.error.httpStatus', 'HTTP {status}: {statusText}', { status: response.status, statusText: response.statusText }));
         }
 
         const data = await response.json();
@@ -146,7 +147,7 @@ export async function loadSamplers(serverType, url, auth) {
         });
 
         if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            throw new Error(tr('igs.error.httpStatus', 'HTTP {status}: {statusText}', { status: response.status, statusText: response.statusText }));
         }
 
         const data = await response.json();
@@ -185,7 +186,7 @@ export async function loadSchedulers(serverType, url, auth) {
         });
 
         if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            throw new Error(tr('igs.error.httpStatus', 'HTTP {status}: {statusText}', { status: response.status, statusText: response.statusText }));
         }
 
         const data = await response.json();
@@ -211,7 +212,7 @@ export async function loadWorkflows(url) {
         });
 
         if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            throw new Error(tr('igs.error.httpStatus', 'HTTP {status}: {statusText}', { status: response.status, statusText: response.statusText }));
         }
 
         const data = await response.json();
@@ -235,7 +236,7 @@ export async function loadWorkflow(fileName) {
         headers: getRequestHeaders(),
         body: JSON.stringify({ file_name: fileName }),
     });
-    if (!response.ok) throw new Error('Failed to load workflow');
+    if (!response.ok) throw new Error(tr('igs.workflow.loadFailed', 'Failed to load workflow'));
     return await response.json();
 }
 
@@ -251,7 +252,7 @@ export async function saveWorkflow(fileName, workflow) {
         headers: getRequestHeaders(),
         body: JSON.stringify({ file_name: fileName, workflow }),
     });
-    if (!response.ok) throw new Error('Failed to save workflow');
+    if (!response.ok) throw new Error(tr('igs.workflow.saveFailed', 'Failed to save workflow'));
 }
 
 /**
@@ -265,7 +266,7 @@ export async function deleteWorkflow(fileName) {
         headers: getRequestHeaders(),
         body: JSON.stringify({ file_name: fileName }),
     });
-    if (!response.ok) throw new Error('Failed to delete workflow');
+    if (!response.ok) throw new Error(tr('igs.workflow.deleteFailed', 'Failed to delete workflow'));
 }
 
 /**
@@ -280,7 +281,7 @@ export async function renameWorkflow(oldName, newName) {
         headers: getRequestHeaders(),
         body: JSON.stringify({ old_name: oldName, new_name: newName }),
     });
-    if (!response.ok) throw new Error('Failed to rename workflow');
+    if (!response.ok) throw new Error(tr('igs.workflow.renameFailed', 'Failed to rename workflow'));
 }
 
 /**
@@ -321,7 +322,7 @@ async function generateComfyImage(connection, prompt, negativePrompt, signal) {
     });
 
     if (!workflowResponse.ok) {
-        throw new Error(`Failed to load workflow: HTTP ${workflowResponse.status}`);
+        throw new Error(tr('igs.workflow.loadHttpFailed', 'Failed to load workflow: HTTP {status}', { status: workflowResponse.status }));
     }
 
     const workflowJson = await workflowResponse.json();
@@ -364,7 +365,7 @@ async function generateComfyImage(connection, prompt, negativePrompt, signal) {
     });
 
     if (!generateResponse.ok) {
-        throw new Error(`ComfyUI generation failed: HTTP ${generateResponse.status}`);
+        throw new Error(tr('igs.generation.comfyFailed', 'ComfyUI generation failed: HTTP {status}', { status: generateResponse.status }));
     }
 
     // Step 5: Parse response
@@ -417,13 +418,13 @@ async function generateAutoImage(connection, prompt, negativePrompt, signal) {
     });
 
     if (!response.ok) {
-        throw new Error(`A1111 generation failed: HTTP ${response.status}`);
+        throw new Error(tr('igs.generation.a1111Failed', 'A1111 generation failed: HTTP {status}', { status: response.status }));
     }
 
     // Step 3: Parse response
     const responseJson = await response.json();
     if (!responseJson.images?.length) {
-        throw new Error('A1111 returned no images.');
+        throw new Error(tr('igs.generation.a1111NoImages', 'A1111 returned no images.'));
     }
     console.log('[IGS]', 'A1111 image generated successfully');
     return { format: 'png', data: responseJson.images[0] };

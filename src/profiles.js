@@ -1,6 +1,7 @@
 import { extension_settings } from '../../../../extensions.js';
 import { saveSettingsDebounced } from '../../../../../script.js';
 import { DEFAULT_SCENE_PROMPT, DEFAULT_CHARACTER_PROMPT, upgradePromptDefaults } from './promptTemplates.js';
+import { tr } from './i18n.js';
 
 const EXTENSION_NAME = 'image-generation-suite';
 
@@ -540,12 +541,12 @@ export function deleteProfile(id) {
     const profileIds = Object.keys(settings.profiles);
 
     if (profileIds.length <= 1) {
-        toastr.warning('Cannot delete the last remaining profile.');
+        toastr.warning(tr('igs.profile.delete.lastRemaining', 'Cannot delete the last remaining profile.'));
         return;
     }
 
     if (!settings.profiles[id]) {
-        toastr.warning('Profile not found.');
+        toastr.warning(tr('igs.profile.notFound', 'Profile not found.'));
         return;
     }
 
@@ -574,7 +575,7 @@ export function duplicateProfile(id) {
     const source = settings.profiles[id];
 
     if (!source) {
-        toastr.error('Source profile not found.');
+        toastr.error(tr('igs.profile.sourceNotFound', 'Source profile not found.'));
         return null;
     }
 
@@ -600,7 +601,7 @@ export function renameProfile(id, newName) {
     const profile = settings.profiles[id];
 
     if (!profile) {
-        toastr.warning('Profile not found.');
+        toastr.warning(tr('igs.profile.notFound', 'Profile not found.'));
         return;
     }
 
@@ -643,12 +644,12 @@ export function importProfiles(jsonString) {
         const imported = JSON.parse(jsonString);
 
         if (typeof imported.version === 'undefined' || typeof imported.profiles === 'undefined') {
-            toastr.error('Invalid profile data: missing "version" or "profiles" keys.');
+            toastr.error(tr('igs.profile.import.missingKeys', 'Invalid profile data: missing "version" or "profiles" keys.'));
             return false;
         }
 
         if (typeof imported.profiles !== 'object' || Object.keys(imported.profiles).length === 0) {
-            toastr.error('Invalid profile data: "profiles" must be a non-empty object.');
+            toastr.error(tr('igs.profile.import.invalidProfiles', 'Invalid profile data: "profiles" must be a non-empty object.'));
             return false;
         }
 
@@ -685,7 +686,7 @@ export function importProfiles(jsonString) {
         return true;
     } catch (error) {
         console.error('[IGS] Failed to import profiles:', error);
-        toastr.error('Failed to import profiles: ' + error.message);
+        toastr.error(tr('igs.profile.import.failed', 'Failed to import profiles: {message}', { message: error.message }));
         return false;
     }
 }
@@ -730,7 +731,7 @@ export function deleteStyleProfile(id) {
 
     const ids = Object.keys(settings.styleProfiles);
     if (ids.length <= 1) {
-        toastr.warning('Cannot delete the last remaining styles profile.');
+        toastr.warning(tr('igs.styleProfile.delete.lastRemaining', 'Cannot delete the last remaining styles profile.'));
         return;
     }
 
@@ -825,7 +826,7 @@ export function importStyleProfile(jsonString) {
     try {
         const imported = JSON.parse(jsonString);
         if (typeof imported.name === 'undefined' || !imported.styles || !Array.isArray(imported.styles)) {
-            toastr.error('Invalid styles profile: missing "name" string or "styles" array.');
+            toastr.error(tr('igs.styleProfile.import.invalid', 'Invalid styles profile: missing "name" string or "styles" array.'));
             return null;
         }
 
@@ -852,7 +853,7 @@ export function importStyleProfile(jsonString) {
         return newProfile;
     } catch (e) {
         console.error('[IGS] Failed to import style profile:', e);
-        toastr.error('Failed to import style profile: ' + e.message);
+        toastr.error(tr('igs.styleProfile.import.failed', 'Failed to import style profile: {message}', { message: e.message }));
         return null;
     }
 }
@@ -894,7 +895,7 @@ export function deleteLoraProfile(id) {
 
     const ids = Object.keys(settings.loraProfiles);
     if (ids.length <= 1) {
-        toastr.warning('Cannot delete the last remaining LoRA profile.');
+        toastr.warning(tr('igs.loraProfile.delete.lastRemaining', 'Cannot delete the last remaining LoRA profile.'));
         return;
     }
 
@@ -988,7 +989,7 @@ export function importLoraProfile(jsonString) {
     try {
         const imported = JSON.parse(jsonString);
         if (typeof imported.name === 'undefined' || !imported.entries || !Array.isArray(imported.entries)) {
-            toastr.error('Invalid LoRA profile: missing "name" string or "entries" array.');
+            toastr.error(tr('igs.loraProfile.import.invalid', 'Invalid LoRA profile: missing "name" string or "entries" array.'));
             return null;
         }
 
@@ -1017,7 +1018,7 @@ export function importLoraProfile(jsonString) {
         return newProfile;
     } catch (e) {
         console.error('[IGS] Failed to import LoRA profile:', e);
-        toastr.error('Failed to import LoRA profile: ' + e.message);
+        toastr.error(tr('igs.loraProfile.import.failed', 'Failed to import LoRA profile: {message}', { message: e.message }));
         return null;
     }
 }
@@ -1059,7 +1060,7 @@ export function deleteCharacterProfile(id) {
 
     const ids = Object.keys(settings.characterProfiles);
     if (ids.length <= 1) {
-        toastr.warning('Cannot delete the last remaining character profile.');
+        toastr.warning(tr('igs.characterProfile.delete.lastRemaining', 'Cannot delete the last remaining character profile.'));
         return;
     }
 
@@ -1153,7 +1154,7 @@ export function importCharacterProfile(jsonString) {
     try {
         const imported = JSON.parse(jsonString);
         if (typeof imported.name === 'undefined' || !imported.characters || !Array.isArray(imported.characters)) {
-            toastr.error('Invalid character profile: missing "name" string or "characters" array.');
+            toastr.error(tr('igs.characterProfile.import.invalid', 'Invalid character profile: missing "name" string or "characters" array.'));
             return null;
         }
 
@@ -1180,7 +1181,7 @@ export function importCharacterProfile(jsonString) {
         return newProfile;
     } catch (e) {
         console.error('[IGS] Failed to import character profile:', e);
-        toastr.error('Failed to import character profile: ' + e.message);
+        toastr.error(tr('igs.characterProfile.import.failed', 'Failed to import character profile: {message}', { message: e.message }));
         return null;
     }
 }
