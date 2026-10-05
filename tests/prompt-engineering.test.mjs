@@ -31,6 +31,36 @@ test('new profiles use the centralized prompt defaults and expanded fresh word r
     assert.equal(profile.customMacros.find(macro => macro.id === 'minwords').max, 300);
     assert.equal(profile.customMacros.find(macro => macro.id === 'maxwords').value, 500);
     assert.equal(profile.customMacros.find(macro => macro.id === 'maxwords').max, 1000);
+    assert.equal(profile.connection.mode, 'tavern');
+});
+
+test('connection migration and import preserve existing custom backends and values', async () => {
+    const { extensionSettings, initSettings, importProfiles } = await loadProfilesModule();
+    const settings = createMigratableSettings({
+        legacyTemplate: 'custom', legacyCharacter: 'custom',
+        customTemplate: 'custom', customCharacter: 'custom',
+    });
+    const legacyConnection = {
+        serverType: 'auto', autoUrl: 'http://example.test:7860', autoAuth: 'test:auth',
+        model: 'my-model', cfgScale: 0, steps: 31, width: 832, height: 1216,
+        seed: 0, denoisingStrength: 0, comfyWorkflow: 'saved.json',
+    };
+    settings.profiles.legacy.connection = legacyConnection;
+    settings.profiles.custom.connection = { serverType: 'comfy', comfyWorkflow: 'custom.json', steps: 12 };
+    extensionSettings['image-generation-suite'] = settings;
+    initSettings();
+    assert.equal(settings.profiles.legacy.connection.mode, 'auto');
+    for (const [key, value] of Object.entries(legacyConnection)) {
+        assert.equal(settings.profiles.legacy.connection[key], value, key);
+    }
+    assert.equal(settings.profiles.custom.connection.mode, 'comfy');
+    const migrated = structuredClone(settings.profiles);
+    const saves = globalThis.__igsSaveCount;
+    initSettings();
+    assert.deepEqual(settings.profiles, migrated);
+    assert.equal(globalThis.__igsSaveCount, saves, 'migration must be idempotent');
+    assert.equal(importProfiles(JSON.stringify(settings)), true);
+    assert.deepEqual(extensionSettings['image-generation-suite'].profiles, migrated);
 });
 
 test('migration upgrades only exact bundled defaults and is idempotent', () => {
@@ -263,6 +293,7 @@ async function loadProfilesModule() {
         .replace("import { extension_settings } from '../../../../extensions.js';", `import { extension_settings } from '${extensionStubUrl}';`)
         .replace("import { saveSettingsDebounced } from '../../../../../script.js';", `import { saveSettingsDebounced } from '${scriptStubUrl}';`)
         .replace("from './promptTemplates.js';", `from '${templatesUrl}';`)
+        .replace("from './connectionSettings.js';", `from '${new URL('../src/connectionSettings.js', import.meta.url).href}';`)
         .replace("from './i18n.js';", `from '${new URL('../src/i18n.js', import.meta.url).href}';`);
 
     globalThis.__igsSaveCount = 0;

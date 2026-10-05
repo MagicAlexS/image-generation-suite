@@ -249,13 +249,17 @@ export async function processImageGeneration(profile, rawPrompt, messageIndex, o
     // Call the image generation API
     const result = await generateImage(profile, fullPositivePrompt, fullNegativePrompt);
 
-    if (!result || !result.data) {
+    if (!result || (!result.data && !result.url)) {
         throw new Error(tr('igs.generation.noData', 'Image generation returned no data'));
     }
 
-    // Save the base64 image to a file and get the URL
-    const charaFilename = getCharaFilename() || 'unknown';
-    const imageUrl = await saveBase64AsFile(result.data, charaFilename, '', result.format);
+    // Tavern's native command already saves generated output and returns its URL.
+    // Custom backends return base64 and continue through the existing file save path.
+    let imageUrl = result.url;
+    if (!imageUrl && result.data) {
+        const charaFilename = getCharaFilename() || 'unknown';
+        imageUrl = await saveBase64AsFile(result.data, charaFilename, '', result.format);
+    }
 
     console.log('[IGS] Image saved:', imageUrl);
 

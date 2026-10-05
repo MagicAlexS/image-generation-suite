@@ -74,7 +74,7 @@ Everything is organized through a **profile system** so you can save, swap, and 
 ### Requirements
 
 - SillyTavern (latest recommended)
-- A local **ComfyUI** or **A1111 / Forge** instance running with API access enabled
+- A configured SillyTavern **Image Generation** source, or a local **ComfyUI** / **A1111 / Forge** instance for custom mode
 - For A1111: launch with `--api` flag
 - For ComfyUI: default setup works out of the box
 
@@ -103,8 +103,8 @@ use `tr(key, englishFallback, params)` or mark a text leaf/attribute with
 
 1. **Enable the extension** in the drawer panel.
 2. Choose the **Connection** tag in the inline settings panel.
-3. Select your server type (ComfyUI or A1111), enter the URL, and click the connect button.
-4. Select your model, sampler, and desired resolution.
+3. Choose **SillyTavern settings** to use the host's current Image Generation configuration, or choose **Custom ComfyUI** / **Custom A1111 / Forge** for an independent connection.
+4. For custom ComfyUI, select or import a workflow first, then test the connection and adjust the parameters used by that workflow. For custom A1111 / Forge, connect and choose your model, sampler, and resolution.
 5. Go to the **Prompt Injection** tab → enable prompt injection. The default template works out of the box.
 6. Start chatting — the extension will inject an image generation prompt every N messages (default: 1) and automatically generate images from the LLM's response.
 
@@ -208,11 +208,17 @@ Controls how image prompts are extracted from LLM output.
 
 ### Connection
 
-Configure your image generation backend.
+Choose one of three configuration modes. New profiles use **SillyTavern settings**. Existing and imported profiles keep their previous custom backend and values.
+
+- **SillyTavern settings** uses the host's current image source, model, dimensions, workflow, and provider settings at generation time. Configure these in SillyTavern's own **Image Generation** drawer. The extension invokes the registered native image command quietly, then inserts the returned image through its existing insertion settings. Native prompt prefixes and negative prompts still apply alongside the extension's compiled prompt. No second chat message is posted by the native command.
+- **Custom ComfyUI** keeps an independent server URL and generation parameters. Workflows are loaded from SillyTavern's shared workflow storage as soon as the page opens; the server does not need to be connected first. You can select an existing workflow, create one, import API-format JSON, edit it, or save a copy. Editing an existing file changes that shared workflow for other consumers too.
+- **Custom A1111 / Forge** keeps an independent URL, optional authentication, model, and generation parameters. You can copy the matching settings from SillyTavern as a starting point and then adjust them independently.
+
+Switching modes preserves custom settings. Reading settings from SillyTavern into a custom mode takes a copy; the **SillyTavern settings** mode follows the live host configuration instead.
 
 | Setting | Description |
 |---------|-------------|
-| **Server Type** | `ComfyUI` or `A1111 / Forge`. |
+| **Configuration mode** | `SillyTavern settings`, `Custom ComfyUI`, or `Custom A1111 / Forge`. |
 | **URL** | ComfyUI default: `http://127.0.0.1:8188` · A1111 default: `http://localhost:7860` |
 | **Auth** | A1111 only — optional `user:password` for API authentication. |
 | **Model / VAE / Sampler / Scheduler** | Populated from the server after connecting. |
@@ -221,13 +227,17 @@ Configure your image generation backend.
 | **Clip Skip** | CLIP skip layers (1–12). |
 | **Seed** | Use -1 for random. |
 
-#### ComfyUI Workflow Management (W.I.P.)
+#### ComfyUI Workflow Management
 
-When using ComfyUI, you get full workflow CRUD (I highly recommend using the built in ST sd extension workflow editor to make edits):
-- **Edit** — Open an inline JSON editor for the selected workflow in the Connection section.
-- **New** — Create a new empty workflow and open the editor.
-- **Rename** — Rename the selected workflow file.
-- **Delete** — Remove the selected workflow.
+The workflow controls appear before the connection and parameter fields:
+
+- **Edit** — Open the selected workflow in the inline JSON editor.
+- **New** — Name a workflow, then enter its API-format JSON in the editor and save after validation.
+- **Import** — Select a ComfyUI **API-format** JSON export, name it, and save after validation.
+- **Save as** — Save the edited workflow under a new name.
+- **More** — Rename or delete a shared workflow.
+
+The variable panel shows which parameters the workflow actually uses. A parameter only replaces its matching placeholder; values fixed inside the workflow stay fixed. Custom variables have a name, type (text, number, or boolean), and value. Built-in names cannot be overridden. Use the editor's validation and replacement preview to check the resulting JSON before generation.
 
 See [ComfyUI Workflow Placeholders](#comfyui-workflow-placeholders) for the template variables you can use in workflows.
 
@@ -469,6 +479,20 @@ When using ComfyUI, you can use these placeholders in your workflow JSON. They a
 - Open **Extensions → Image Generation Suite**, use the extension menu shortcut, or type `/suitehub` to jump to the inline panel.
 
 ---
+
+## Development checks
+
+Run the focused regression suite with Node.js:
+
+```text
+node --test tests/*.test.mjs
+```
+
+For a local UI preview, run `node tests/connection-preview.mjs` and open
+`http://127.0.0.1:8767`. Add `?width=360` to check a narrow layout. The preview
+uses in-memory workflow and connection responses and blocks image generation.
+It reads jQuery from `D:\SillyTavern-release\public\lib\jquery-3.5.1.min.js` by
+default; use `--jquery="path/to/jquery.js"` to choose another local copy.
 
 ## License
 

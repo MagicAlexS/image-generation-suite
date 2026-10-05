@@ -51,7 +51,13 @@ import {
     loadWorkflow,
     saveWorkflow,
     deleteWorkflow,
-    renameWorkflow
+    renameWorkflow,
+    getConnectionMode,
+    setConnectionMode,
+    getTavernSummary,
+    readTavernConnection,
+    WORKFLOW_VARIABLES,
+    inspectWorkflow
 } from './connection.js';
 
 import {
@@ -135,7 +141,7 @@ function renderSettingsGroup(title, content, description = '', className = '') {
  * @returns {string} Escaped string.
  */
 function esc(str) {
-    if (!str) return '';
+    if (str === null || str === undefined) return '';
     return String(str)
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
@@ -210,7 +216,10 @@ function populateModalSelect(selectId, options, currentValue) {
     select.empty();
 
     if (!options || options.length === 0) {
-        select.append($('<option>', { value: '', text: tr('igs.modal.value.noneDefault', 'None/Default') }));
+        const emptyLabel = selectId === 'igs_m_model'
+            ? tr('igs.connectionUi.chooseModel', 'Choose a model')
+            : tr('igs.connectionUi.serverDefault', 'Server default');
+        select.append($('<option>', { value: '', text: emptyLabel }));
         if (currentValue) {
             select.prepend($('<option>', { value: currentValue, text: currentValue }));
             select.val(currentValue);
@@ -857,173 +866,7 @@ function bindDetectionSettingsTab() {
 // ============================================================
 
 function renderConnectionTab() {
-    const profile = getActiveProfile();
-    const conn = profile.connection;
-    const isComfy = conn.serverType === 'comfy';
-
-    return `
-        <div class="igs-modal-section">
-            ${renderSettingsGroup(tr('igs.modal.group.backend', 'Backend'), `
-            <div class="igs-modal-field">
-                <label class="igs-field-label" for="igs_m_server_type"><span data-i18n="igs.modal.text.server-type">Server Type</span></label>
-                <select id="igs_m_server_type" class="text_pole">
-                    <option value="comfy" ${conn.serverType === 'comfy' ? 'selected' : ''} data-i18n="igs.modal.text.comfyui">ComfyUI</option>
-                    <option value="auto" ${conn.serverType === 'auto' ? 'selected' : ''} data-i18n="igs.modal.text.a1111-forge">A1111 / Forge</option>
-                </select>
-            </div>
-
-            <!-- ComfyUI Section -->
-            <div class="igs-m-comfy-only" style="${isComfy ? '' : 'display:none;'}">
-                <div class="igs-modal-field">
-                    <label class="igs-field-label" for="igs_m_comfy_url"><span data-i18n="igs.modal.text.comfyui-url">ComfyUI URL</span></label>
-                    <div class="igs-inline-group">
-                        <input type="text" id="igs_m_comfy_url" class="text_pole"
-                            value="${esc(conn.comfyUrl)}" placeholder="http://127.0.0.1:8188" data-i18n="[placeholder]igs.modal.attr.http-127-0-0-1-8188">
-                        <div id="igs_m_connect_btn" class="menu_button" title="Connect" data-i18n="[title]igs.modal.attr.connect">
-                            <i class="fa-solid fa-plug"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- A1111 Section -->
-            <div class="igs-m-auto-only" style="${isComfy ? 'display:none;' : ''}">
-                <div class="igs-modal-field">
-                    <label class="igs-field-label" for="igs_m_auto_url"><span data-i18n="igs.modal.text.a1111-url">A1111 URL</span></label>
-                    <input type="text" id="igs_m_auto_url" class="text_pole"
-                        value="${esc(conn.autoUrl)}" placeholder="http://localhost:7860" data-i18n="[placeholder]igs.modal.attr.http-localhost-7860">
-                </div>
-                <div class="igs-modal-field">
-                    <label class="igs-field-label" for="igs_m_auto_auth"><span data-i18n="igs.modal.text.a1111-auth">A1111 Auth</span></label>
-                    <div class="igs-inline-group">
-                        <input type="text" id="igs_m_auto_auth" class="text_pole"
-                            value="${esc(conn.autoAuth)}" placeholder="user:password (optional)" data-i18n="[placeholder]igs.modal.attr.user-password-optional">
-                        <div id="igs_m_connect_btn_auto" class="menu_button" title="Connect" data-i18n="[title]igs.modal.attr.connect">
-                            <i class="fa-solid fa-plug"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Connection Status -->
-            <div class="igs-modal-field">
-                <div id="igs_m_connection_status" class="igs-connection-status">
-                    <span class="igs-status-dot disconnected"></span>
-                    <span>${tr('igs.modal.connection.notConnected', 'Not connected')}</span>
-                </div>
-            </div>
-            `, tr('igs.modal.description.backend', 'Choose a server and connect to it. Backend-specific fields follow the selected server type.'))}
-
-            ${renderSettingsGroup(tr('igs.modal.group.generationParameters', 'Generation parameters'), `
-            <!-- Resource Selects -->
-            <div class="igs-modal-field">
-                <label class="igs-field-label" for="igs_m_model"><span data-i18n="igs.modal.text.model">Model</span></label>
-                <select id="igs_m_model" class="text_pole">
-                    <option value="${esc(conn.model)}">${esc(conn.model) || tr('igs.modal.value.noneDefault', 'None/Default')}</option>
-                </select>
-            </div>
-
-            <div class="igs-modal-field">
-                <label class="igs-field-label" for="igs_m_vae"><span data-i18n="igs.modal.text.vae">VAE</span></label>
-                <select id="igs_m_vae" class="text_pole">
-                    <option value="${esc(conn.vae)}">${esc(conn.vae) || tr('igs.modal.value.noneDefault', 'None/Default')}</option>
-                </select>
-            </div>
-
-            <div class="igs-modal-field">
-                <label class="igs-field-label" for="igs_m_sampler"><span data-i18n="igs.modal.text.sampler">Sampler</span></label>
-                <select id="igs_m_sampler" class="text_pole">
-                    <option value="${esc(conn.sampler)}">${esc(conn.sampler) || tr('igs.modal.value.noneDefault', 'None/Default')}</option>
-                </select>
-            </div>
-
-            <div class="igs-modal-field">
-                <label class="igs-field-label" for="igs_m_scheduler"><span data-i18n="igs.modal.text.scheduler">Scheduler</span></label>
-                <select id="igs_m_scheduler" class="text_pole">
-                    <option value="${esc(conn.scheduler)}">${esc(conn.scheduler) || tr('igs.modal.value.noneDefault', 'None/Default')}</option>
-                </select>
-            </div>
-
-            <hr>
-
-            <!-- Sliders -->
-            <div class="igs-modal-field">
-                <label class="igs-field-label"><span data-i18n="igs.modal.text.steps">Steps</span></label>
-                <div class="igs-slider-container">
-                    <input type="range" id="igs_m_steps" min="1" max="150" value="${conn.steps || 20}">
-                    <input type="number" id="igs_m_steps_value" min="1" max="150" value="${conn.steps || 20}">
-                </div>
-            </div>
-
-            <div class="igs-modal-field">
-                <label class="igs-field-label"><span data-i18n="igs.modal.text.cfg-scale">CFG Scale</span></label>
-                <div class="igs-slider-container">
-                    <input type="range" id="igs_m_cfg_scale" min="1" max="30" step="0.5" value="${conn.cfgScale || 7}">
-                    <input type="number" id="igs_m_cfg_scale_value" min="1" max="30" step="0.5" value="${conn.cfgScale || 7}">
-                </div>
-            </div>
-
-            <div class="igs-modal-field">
-                <label class="igs-field-label"><span data-i18n="igs.modal.text.width">Width</span></label>
-                <div class="igs-slider-container">
-                    <input type="range" id="igs_m_width" min="64" max="2048" step="64" value="${conn.width || 512}">
-                    <input type="number" id="igs_m_width_value" min="64" max="2048" step="64" value="${conn.width || 512}">
-                </div>
-            </div>
-
-            <div class="igs-modal-field">
-                <label class="igs-field-label"><span data-i18n="igs.modal.text.height">Height</span></label>
-                <div class="igs-slider-container">
-                    <input type="range" id="igs_m_height" min="64" max="2048" step="64" value="${conn.height || 512}">
-                    <input type="number" id="igs_m_height_value" min="64" max="2048" step="64" value="${conn.height || 512}">
-                </div>
-            </div>
-
-            <div class="igs-modal-field">
-                <label class="igs-field-label"><span data-i18n="igs.modal.text.denoising-strength">Denoising Strength</span></label>
-                <div class="igs-slider-container">
-                    <input type="range" id="igs_m_denoising" min="0" max="1" step="0.05" value="${conn.denoisingStrength ?? 0.7}">
-                    <input type="number" id="igs_m_denoising_value" min="0" max="1" step="0.05" value="${conn.denoisingStrength ?? 0.7}">
-                </div>
-            </div>
-
-            <div class="igs-modal-field">
-                <label class="igs-field-label"><span data-i18n="igs.modal.text.clip-skip">Clip Skip</span></label>
-                <div class="igs-slider-container">
-                    <input type="range" id="igs_m_clip_skip" min="1" max="12" value="${conn.clipSkip || 1}">
-                    <input type="number" id="igs_m_clip_skip_value" min="1" max="12" value="${conn.clipSkip || 1}">
-                </div>
-            </div>
-
-            <div class="igs-modal-field">
-                <label class="igs-field-label" for="igs_m_seed"><span data-i18n="igs.modal.text.seed">Seed</span></label>
-                <input type="number" id="igs_m_seed" class="text_pole" value="${conn.seed ?? -1}">
-                <div class="igs-hint"><span data-i18n="igs.modal.text.use-1-for-random-seed">Use -1 for random seed.</span></div>
-            </div>
-            `, tr('igs.modal.description.generationParameters', 'Select the model and tune image size, sampling, and seed.'))}
-
-            ${renderSettingsGroup(tr('igs.modal.group.workflow', 'Workflow'), `
-            <!-- ComfyUI Workflow -->
-            <div class="igs-m-comfy-only" style="${isComfy ? '' : 'display:none;'}">
-                <div class="igs-modal-field">
-                    <label class="igs-field-label"><span data-i18n="igs.modal.text.comfyui-workflow">ComfyUI Workflow</span></label>
-                    <div class="igs-workflow-bar">
-                        <select id="igs_m_comfy_workflow" class="text_pole">
-                            <option value="${esc(conn.comfyWorkflow)}">${esc(conn.comfyWorkflow) || tr('igs.modal.value.noneDefault', 'None/Default')}</option>
-                        </select>
-                        <div class="igs-workflow-actions">
-                            <div class="menu_button" id="igs_m_workflow_edit" title="Edit Workflow" data-i18n="[title]igs.modal.attr.edit-workflow"><i class="fa-solid fa-pen-to-square"></i></div>
-                            <div class="menu_button" id="igs_m_workflow_new" title="New Workflow" data-i18n="[title]igs.modal.attr.new-workflow"><i class="fa-solid fa-plus"></i></div>
-                            <div class="menu_button" id="igs_m_workflow_rename" title="Rename Workflow" data-i18n="[title]igs.modal.attr.rename-workflow"><i class="fa-solid fa-pencil"></i></div>
-                            <div class="menu_button" id="igs_m_workflow_delete" title="Delete Workflow" data-i18n="[title]igs.modal.attr.delete-workflow"><i class="fa-solid fa-trash-can"></i></div>
-                        </div>
-                    </div>
-                </div>
-                <div id="igs_workflow_editor_mount"></div>
-            </div>
-            `, 'Choose or edit the ComfyUI workflow used for generation.', isComfy ? 'igs-workflow-settings-group' : 'igs-workflow-settings-group igs-settings-group-hidden')}
-        </div>
-    `;
+    return renderConnectionUi();
 }
 
 /**
@@ -1033,10 +876,24 @@ function renderConnectionTab() {
  * @param {'comfy'|'auto'} type - The backend type.
  */
 async function handleModalConnect(type) {
+    let requestProfileId;
+    let requestMode;
+    let requestIsCurrent = () => false;
     try {
         const profile = getActiveProfile();
+        requestProfileId = profile?.id;
+        requestMode = getConnectionMode(profile?.connection || {});
+        if (!profile || requestMode !== type) return;
+        const requestMount = document.querySelector('.igs-connection-ui');
         const url = type === 'comfy' ? profile.connection.comfyUrl : profile.connection.autoUrl;
         const auth = type === 'auto' ? profile.connection.autoAuth : '';
+        requestIsCurrent = () => {
+            const active = getActiveProfile();
+            return requestMount?.isConnected && active?.id === requestProfileId && active.connection === profile.connection &&
+                getConnectionMode(active.connection) === requestMode &&
+                (type === 'comfy' ? active.connection.comfyUrl : active.connection.autoUrl) === url &&
+                (type !== 'auto' || active.connection.autoAuth === auth);
+        };
 
         const statusDot = $('#igs_m_connection_status .igs-status-dot');
         const statusText = $('#igs_m_connection_status span').last();
@@ -1044,28 +901,25 @@ async function handleModalConnect(type) {
         statusText.text(tr('igs.modal.connection.connecting', 'Connecting...'));
 
         const success = await testConnection(type, url, auth);
+        if (!requestIsCurrent()) return;
 
         if (success) {
             statusDot.removeClass('connecting').addClass('connected');
             statusText.text(tr('igs.modal.connection.connected', 'Connected'));
 
             toastr.info(tr('igs.modal.connection.loadingResources', 'Loading models and resources...'));
-            const [models, vaes, samplers, schedulers, workflows] = await Promise.all([
+            const [models, vaes, samplers, schedulers] = await Promise.all([
                 loadModels(type, url, auth),
                 loadVaes(type, url, auth),
                 loadSamplers(type, url, auth),
-                loadSchedulers(type, url, auth),
-                type === 'comfy' ? loadWorkflows(url) : Promise.resolve([])
+                loadSchedulers(type, url, auth)
             ]);
+            if (!requestIsCurrent()) return;
 
             populateModalSelect('igs_m_model', models, profile.connection.model);
             populateModalSelect('igs_m_vae', vaes, profile.connection.vae);
             populateModalSelect('igs_m_sampler', samplers, profile.connection.sampler);
             populateModalSelect('igs_m_scheduler', schedulers, profile.connection.scheduler);
-
-            if (type === 'comfy') {
-                populateModalSelect('igs_m_comfy_workflow', workflows, profile.connection.comfyWorkflow);
-            }
 
             toastr.success(tr('igs.modal.connection.resourcesLoaded', 'Resources loaded!'));
         } else {
@@ -1073,6 +927,7 @@ async function handleModalConnect(type) {
             statusText.text(tr('igs.modal.connection.failed', 'Failed'));
         }
     } catch (err) {
+        if (!requestIsCurrent()) return;
         console.error('[IGS] Connection error:', err);
         toastr.error(tr('igs.modal.connection.failedWithError', 'Connection failed: {error}', { error: err.message }));
 
@@ -1084,184 +939,709 @@ async function handleModalConnect(type) {
 }
 
 function bindConnectionTab() {
+    bindConnectionUi();
+}
+
+function renderVariableRows(variables = []) {
+    const variableNameLabel = tr('igs.connectionUi.variableName', 'Variable name');
+    const variableTypeLabel = tr('igs.connectionUi.variableType', 'Variable type');
+    const variableValueLabel = tr('igs.connectionUi.variableValue', 'Variable value');
+    return variables.map((variable, index) => {
+        const valueControl = variable.type === 'boolean'
+            ? `<select class="text_pole igs-var-value" aria-label="${variableValueLabel}">
+                <option value="true" ${String(variable.value) === 'true' ? 'selected' : ''}>true</option>
+                <option value="false" ${String(variable.value) !== 'true' ? 'selected' : ''}>false</option>
+            </select>`
+            : `<input type="${variable.type === 'number' ? 'number' : 'text'}" class="text_pole igs-var-value"
+                aria-label="${variableValueLabel}" value="${esc(variable.value)}" placeholder="${variableValueLabel}">`;
+
+        return `<div class="igs-workflow-var-row" data-index="${index}">
+            <input class="text_pole igs-var-name" aria-label="${variableNameLabel}"
+                value="${esc(variable.name)}" placeholder="${variableNameLabel}">
+            <select class="text_pole igs-var-type" aria-label="${variableTypeLabel}">
+                ${[
+                    ['string', tr('igs.connectionUi.typeText', 'Text')],
+                    ['number', tr('igs.connectionUi.typeNumber', 'Number')],
+                    ['boolean', tr('igs.connectionUi.typeBoolean', 'Boolean')],
+                ].map(([type, label]) => `<option value="${type}" ${variable.type === type ? 'selected' : ''}>${label}</option>`).join('')}
+            </select>
+            ${valueControl}
+            <button type="button" class="menu_button igs-var-remove">${tr('igs.connectionUi.delete', 'Delete')}</button>
+        </div>`;
+    }).join('');
+}
+
+function safeConnectionNumber(value, fallback) {
+    const number = Number(value ?? fallback);
+    return esc(Number.isFinite(number) ? number : fallback);
+}
+
+// Connection settings UI, preserving the existing profile and tab lifecycle.
+function renderConnectionUi() {
+    const profile = getActiveProfile();
+    const T = (key, fallback) => tr(`igs.connectionUi.${key}`, fallback);
+    const conn = profile.connection;
+    const mode = getConnectionMode(conn);
+    const isComfy = mode === 'comfy';
+    const vars = Array.isArray(conn.workflowVariables) ? conn.workflowVariables : [];
+    const varRows = renderVariableRows(vars);
+    const seedValue = Number(conn.seed ?? -1);
+    const safeSeed = Number.isFinite(seedValue) ? seedValue : -1;
+    const group = (title, content, desc = '') => renderSettingsGroup(title, content, desc);
+    const modePicker = `<div class="igs-mode-picker" role="group" aria-label="${T('modeLabel', 'Configuration mode')}">
+        <button type="button" class="igs-mode-choice ${mode === 'tavern' ? 'active' : ''}" data-mode="tavern" aria-pressed="${mode === 'tavern'}">${T('tavern', 'Tavern settings')}</button>
+        <button type="button" class="igs-mode-choice ${isComfy ? 'active' : ''}" data-mode="comfy" aria-pressed="${isComfy}">${T('comfy', 'Custom ComfyUI')}</button>
+        <button type="button" class="igs-mode-choice ${mode === 'auto' ? 'active' : ''}" data-mode="auto" aria-pressed="${mode === 'auto'}">${T('auto', 'Custom A1111 / Forge')}</button>
+    </div>`;
+    const tavernPane = `<section class="igs-tavern-pane" ${mode === 'tavern' ? '' : 'hidden'}>
+        <h3>${T('tavernTitle', 'Tavern image generation settings')}</h3>
+        <p class="igs-settings-group-description">${T('tavernDescription', 'Use the current Tavern image generation settings. Parameters are managed by Tavern.')}</p>
+        <div id="igs_tavern_summary" class="igs-tavern-summary" aria-live="polite">${T('loadingTavern', 'Loading Tavern settings…')}</div>
+        <div class="igs-inline-group">
+            <button type="button" class="menu_button" id="igs_tavern_refresh">${T('refresh', 'Refresh')}</button>
+            <button type="button" class="menu_button" id="igs_tavern_settings">${T('openTavern', 'Open Tavern image settings')}</button>
+        </div>
+    </section>`;
+
+    const workflowGroup = isComfy ? group(T('workflow', 'ComfyUI workflow'), `
+        <div class="igs-modal-field">
+            <label class="igs-field-label" for="igs_m_comfy_workflow">${T('existingWorkflows', 'Workflows available in Tavern')}</label>
+            <div class="igs-workflow-bar">
+                <select id="igs_m_comfy_workflow" class="text_pole">
+                    <option value="${esc(conn.comfyWorkflow || '')}">${esc(conn.comfyWorkflow) || T('chooseWorkflow', 'Choose a workflow')}</option>
+                </select>
+                <button type="button" class="menu_button" id="igs_workflow_refresh">${T('refreshList', 'Refresh list')}</button>
+            </div>
+        </div>
+        <div class="igs-workflow-actions">
+            <button type="button" class="menu_button" id="igs_m_workflow_new">${T('newWorkflow', 'New workflow')}</button>
+            <button type="button" class="menu_button" id="igs_m_workflow_import">${T('importJson', 'Import JSON')}</button>
+            <button type="button" class="menu_button" id="igs_m_workflow_edit">${T('editSelected', 'Edit selected')}</button>
+            <button type="button" class="menu_button" id="igs_m_workflow_save_as">${T('saveAs', 'Save as')}</button>
+            <details><summary>${T('more', 'More')}</summary>
+                <div class="igs-workflow-actions">
+                    <button type="button" class="menu_button" id="igs_m_workflow_rename">${T('rename', 'Rename')}</button>
+                    <button type="button" class="menu_button" id="igs_m_workflow_delete">${T('delete', 'Delete')}</button>
+                </div>
+            </details>
+        </div>
+        <p class="igs-shared-workflow-note">${T('sharedWorkflow', 'Workflows are stored in Tavern’s shared directory and may be used by other features.')}</p>
+        <input type="file" id="igs_m_workflow_import_file" accept=".json,application/json" hidden>
+        <div id="igs_workflow_editor_mount"></div>`, T('workflowHelp', 'Choose a workflow before testing the connection.')) : '';
+
+    const connectionFields = isComfy
+        ? `<label class="igs-field-label" for="igs_m_comfy_url">${T('comfyUrl', 'ComfyUI URL')}</label>
+            <div class="igs-inline-group">
+                <input type="url" id="igs_m_comfy_url" class="text_pole" value="${esc(conn.comfyUrl)}" placeholder="http://127.0.0.1:8188">
+                <button type="button" class="menu_button" id="igs_m_connect_btn">${T('testConnection', 'Test connection')}</button>
+            </div>`
+        : `<label class="igs-field-label" for="igs_m_auto_url">${T('autoUrl', 'A1111 / Forge URL')}</label>
+            <input type="url" id="igs_m_auto_url" class="text_pole" value="${esc(conn.autoUrl)}" placeholder="http://localhost:7860">
+            <label class="igs-field-label" for="igs_m_auto_auth">${T('authOptional', 'Authentication (optional)')}</label>
+            <div class="igs-inline-group">
+                <input type="password" id="igs_m_auto_auth" class="text_pole" value="${esc(conn.autoAuth)}" placeholder="username:password">
+                <button type="button" class="menu_button" id="igs_m_connect_btn_auto">${T('testConnection', 'Test connection')}</button>
+            </div>`;
+    const connectionGroup = group(T('connection', 'Connection'), `${connectionFields}
+        <button type="button" class="menu_button" id="igs_read_tavern_params">${T('readTavernParams', 'Read Tavern parameters')}</button>
+        <div id="igs_read_tavern_feedback" aria-live="polite"></div>
+        <div id="igs_m_connection_status" class="igs-connection-status" aria-live="polite">
+            <span class="igs-status-dot disconnected"></span><span>${T('notTested', 'Connection not tested')}</span>
+        </div>`);
+
+    const commonParameters = group(T('commonParameters', 'Common parameters'), `
+        <div class="igs-parameter-grid">
+            <label>${T('model', 'Model')}<select id="igs_m_model" class="text_pole">
+                <option value="${esc(conn.model)}">${esc(conn.model) || T('chooseModel', 'Choose a model')}</option>
+            </select></label>
+            <label>${T('sampler', 'Sampler')}<select id="igs_m_sampler" class="text_pole">
+                <option value="${esc(conn.sampler)}">${esc(conn.sampler) || T('serverDefault', 'Server default')}</option>
+            </select></label>
+        </div>
+        <div class="igs-size-presets"><span>${T('size', 'Size')}</span>
+            <button type="button" class="menu_button" data-size="512,512">${T('square', 'Square')}</button>
+            <button type="button" class="menu_button" data-size="768,512">${T('landscape', 'Landscape')}</button>
+            <button type="button" class="menu_button" data-size="512,768">${T('portrait', 'Portrait')}</button>
+        </div>
+        <div class="igs-size-row">
+            <label>${T('width', 'Width')} <input type="number" id="igs_m_width_value" min="64" max="2048" step="64" value="${safeConnectionNumber(conn.width, 512)}"></label>
+            <button type="button" class="menu_button" id="igs_m_swap_size" aria-label="${T('swapSize', 'Swap width and height')}">${T('swap', 'Swap')}</button>
+            <label>${T('height', 'Height')} <input type="number" id="igs_m_height_value" min="64" max="2048" step="64" value="${safeConnectionNumber(conn.height, 512)}"></label>
+        </div>
+        <div class="igs-parameter-grid">
+            <label>${T('steps', 'Steps')}<input type="number" id="igs_m_steps_value" class="text_pole" min="1" max="150" step="1" value="${safeConnectionNumber(conn.steps, 20)}"></label>
+            <label>${T('cfg', 'CFG')}<input type="number" id="igs_m_cfg_scale_value" class="text_pole" min="0" max="30" step="0.5" value="${safeConnectionNumber(conn.cfgScale, 7)}"></label>
+        </div>
+        <div class="igs-seed-row">
+            <label><input type="checkbox" id="igs_m_seed_random" ${safeSeed < 0 ? 'checked' : ''}> ${T('randomSeed', 'Random seed')}</label>
+            <input type="number" id="igs_m_seed" class="text_pole" min="-1" value="${safeConnectionNumber(safeSeed, -1)}" ${safeSeed < 0 ? 'disabled' : ''} aria-label="${T('fixedSeed', 'Fixed seed')}">
+        </div>
+        ${isComfy ? `<p id="igs_workflow_effective_hint" class="igs-workflow-effective-hint">${T('effectiveHint', 'Select a workflow to see which parameters it uses.')}</p>` : ''}
+        <details class="igs-advanced"><summary>${T('advanced', 'Advanced parameters')}</summary>
+            <div class="igs-parameter-grid">
+                <label>${T('vae', 'VAE')}<select id="igs_m_vae" class="text_pole"><option value="${esc(conn.vae)}">${esc(conn.vae) || T('serverDefault', 'Server default')}</option></select></label>
+                <label>${T('scheduler', 'Scheduler')}<select id="igs_m_scheduler" class="text_pole"><option value="${esc(conn.scheduler)}">${esc(conn.scheduler) || T('serverDefault', 'Server default')}</option></select></label>
+                <label>${T('denoise', 'Denoising strength')}<input type="number" id="igs_m_denoising_value" class="text_pole" min="0" max="1" step="0.05" value="${safeConnectionNumber(conn.denoisingStrength, 0.7)}"></label>
+                <label>${T('clipSkip', 'Clip Skip')}<input type="number" id="igs_m_clip_skip_value" class="text_pole" min="1" max="12" step="1" value="${safeConnectionNumber(conn.clipSkip, 1)}"></label>
+            </div>
+        </details>`);
+
+    const variableGroup = isComfy ? group(T('workflowVariables', 'Workflow variables'), `
+        <div class="igs-variable-list">${WORKFLOW_VARIABLES.map(variable => `<span class="igs-variable-chip">
+            <code>%${esc(variable.name)}%</code> ${T(`variable.${variable.name}`, variable.label || variable.name)}
+        </span>`).join('')}</div>
+        <p class="igs-settings-group-description">${T('variablesHelp', 'Insert built-in variables in the editor, or define string, number, and boolean variables.')}</p>
+        <div class="igs-workflow-actions">
+            <button type="button" class="menu_button" id="igs_var_add">${T('addVariable', 'Add custom variable')}</button>
+            <button type="button" class="menu_button" id="igs_var_preview">${T('previewReplacement', 'Preview replacements')}</button>
+        </div>
+        <div id="igs_custom_vars">${varRows}</div>
+        <pre id="igs_var_preview_result" class="igs-var-preview" hidden></pre>
+        <div id="igs_var_validation" aria-live="polite"></div>`) : '';
+
+    return `<div class="igs-modal-section igs-connection-ui">
+        ${modePicker}
+        ${tavernPane}
+        <div class="igs-custom-pane" ${mode === 'tavern' ? 'hidden' : ''}>
+            ${workflowGroup}
+            ${connectionGroup}
+            ${commonParameters}
+            ${variableGroup}
+        </div>
+    </div>`;
+}
+
+function bindConnectionUi() {
+    const modal = $('#igs_settings_root');
     const profile = getActiveProfile();
     const conn = profile.connection;
-    const modal = $('#igs_settings_root');
+    const mode = getConnectionMode(conn);
+    const ui = modal.find('.igs-connection-ui')[0];
+    const profileId = profile.id;
+    let workflowListRequest = 0;
+    let variableHintTimer;
+    const isCurrent = (expectedMode = mode) => {
+        const active = getActiveProfile();
+        return Boolean(ui?.isConnected && active?.id === profileId && active.connection === conn && getConnectionMode(conn) === expectedMode);
+    };
+    const reportError = error => toastr.error(error.message || String(error));
+    const renderVariables = () => {
+        const list = document.getElementById('igs_custom_vars');
+        if (list?.isConnected) list.innerHTML = renderVariableRows(conn.workflowVariables || []);
+    };
+    const scheduleVariableHint = () => {
+        clearTimeout(variableHintTimer);
+        variableHintTimer = setTimeout(() => refreshWorkflowHint(conn, conn.comfyWorkflow, ui), 180);
+    };
+    const numericSpecs = {
+        igs_m_steps_value: { field: 'steps', min: 1, max: 150, integer: true },
+        igs_m_cfg_scale_value: { field: 'cfgScale', min: 0, max: 30 },
+        igs_m_width_value: { field: 'width', min: 64, max: 2048, integer: true },
+        igs_m_height_value: { field: 'height', min: 64, max: 2048, integer: true },
+        igs_m_denoising_value: { field: 'denoisingStrength', min: 0, max: 1 },
+        igs_m_clip_skip_value: { field: 'clipSkip', min: 1, max: 12, integer: true },
+        igs_m_seed: { field: 'seed', min: -1, integer: true },
+    };
 
-    // Server type toggle
-    modal.on('change.igstab', '#igs_m_server_type', function () {
-        conn.serverType = $(this).val();
-        saveProfiles();
-        if (conn.serverType === 'comfy') {
-            modal.find('.igs-m-comfy-only').show();
-            modal.find('.igs-m-auto-only').hide();
-        } else {
-            modal.find('.igs-m-comfy-only').hide();
-            modal.find('.igs-m-auto-only').show();
+    async function reloadWorkflowList(selected = conn.comfyWorkflow) {
+        const requestId = ++workflowListRequest;
+        const requestedWorkflow = conn.comfyWorkflow;
+        const list = await loadWorkflows();
+        if (!isCurrent('comfy') || requestId !== workflowListRequest || conn.comfyWorkflow !== requestedWorkflow) return;
+        const select = $('#igs_m_comfy_workflow').empty();
+        if (list.length) {
+            select.append($('<option>', { value: '', text: tr('igs.connectionUi.chooseWorkflow', 'Choose a workflow') }));
+            for (const name of list) select.append($('<option>', { value: name, text: name }));
         }
-        modal.find('.igs-workflow-settings-group').toggle(conn.serverType === 'comfy');
+        if (!list?.length) {
+            select.append($('<option>', {
+                value: selected || '',
+                text: selected
+                    ? tr('igs.connectionUi.missingWorkflow', 'Missing workflow: {name}', { name: selected })
+                    : tr('igs.connectionUi.noWorkflows', 'No workflows found'),
+            }));
+        } else if (selected && !list.includes(selected)) {
+            select.prepend($('<option>', {
+                value: selected,
+                text: tr('igs.connectionUi.missingWorkflow', 'Missing workflow: {name}', { name: selected }),
+            }));
+        }
+        select.val(selected || '');
+        if (selected && list.includes(selected)) conn.comfyWorkflow = selected;
+        saveProfiles();
+        await refreshWorkflowHint(conn, selected, ui);
+    }
+
+    function openNameForm(title, onSave, options = {}) {
+        workflowNameForm(title, onSave, {
+            initial: options.initial || '',
+            allowExisting: options.allowExisting || '',
+            preserveEditor: options.preserveEditor || false,
+            isCurrent: () => isCurrent('comfy'),
+        });
+    }
+
+    async function saveAsWorkflow(title, sourceText, expectedWorkflow) {
+        openNameForm(title, async name => {
+            if (!isCurrent('comfy') || conn.comfyWorkflow !== expectedWorkflow) return;
+            const result = inspectWorkflowForSave(sourceText, conn);
+            await saveWorkflow(name, result.template);
+            if (!isCurrent('comfy') || conn.comfyWorkflow !== expectedWorkflow) return;
+            conn.comfyWorkflow = name;
+            saveProfiles();
+            await reloadWorkflowList(name);
+            ui.querySelector('.igs-workflow-editor-popup')?.remove();
+        }, { preserveEditor: true });
+    }
+
+    if (mode === 'tavern') loadTavernSummary(profileId, ui);
+    if (mode === 'comfy') reloadWorkflowList().catch(error => {
+        if (isCurrent('comfy')) workflowListError(error);
     });
 
-    // URL / Auth inputs
-    bindModalInput('igs_m_comfy_url', val => { conn.comfyUrl = val; });
-    bindModalInput('igs_m_auto_url', val => { conn.autoUrl = val; });
-    bindModalInput('igs_m_auto_auth', val => { conn.autoAuth = val; });
+    modal.on('click.igstab', '.igs-mode-choice', function () {
+        const nextMode = $(this).data('mode');
+        if (!isCurrent() || nextMode === mode) return;
+        setConnectionMode(conn, nextMode);
+        saveProfiles();
+        renderActiveTab();
+    });
 
-    // Connect buttons
+    for (const [id, field] of [
+        ['igs_m_comfy_url', 'comfyUrl'], ['igs_m_auto_url', 'autoUrl'], ['igs_m_auto_auth', 'autoAuth'],
+        ['igs_m_model', 'model'], ['igs_m_vae', 'vae'], ['igs_m_sampler', 'sampler'], ['igs_m_scheduler', 'scheduler'],
+        ['igs_m_comfy_workflow', 'comfyWorkflow'],
+    ]) {
+        bindModalInput(id, value => { conn[field] = value; });
+    }
+
+    modal.on('input.igstab change.igstab', Object.keys(numericSpecs).map(id => `#${id}`).join(','), function () {
+        const spec = numericSpecs[this.id];
+        const raw = this.value.trim();
+        const value = raw === '' ? NaN : Number(raw);
+        const valid = Number.isFinite(value) && value >= spec.min && (spec.max === undefined || value <= spec.max) && (!spec.integer || Number.isInteger(value));
+        this.setCustomValidity(valid ? '' : tr('igs.connectionUi.invalidNumber', 'Enter a valid value in the allowed range.'));
+        if (!valid) return;
+        conn[spec.field] = value;
+        saveProfiles();
+    });
+
     modal.on('click.igstab', '#igs_m_connect_btn', () => handleModalConnect('comfy'));
     modal.on('click.igstab', '#igs_m_connect_btn_auto', () => handleModalConnect('auto'));
-
-    // Resource selects
-    bindModalInput('igs_m_model', val => { conn.model = val; });
-    bindModalInput('igs_m_vae', val => { conn.vae = val; });
-    bindModalInput('igs_m_sampler', val => { conn.sampler = val; });
-    bindModalInput('igs_m_scheduler', val => { conn.scheduler = val; });
-    bindModalInput('igs_m_comfy_workflow', val => { conn.comfyWorkflow = val; });
-
-    // --- Workflow Management Handlers ---
-
-    /**
-     * Opens the inline editor for the given workflow file.
-     * @param {string} fileName - The workflow filename to edit.
-     */
-    async function openWorkflowEditor(fileName) {
+    modal.on('click.igstab', '#igs_read_tavern_params', async () => {
+        const feedback = document.getElementById('igs_read_tavern_feedback');
         try {
-            const mount = document.getElementById('igs_workflow_editor_mount');
-            const profileId = profile.id;
-            if (!mount) return;
-
-            const workflowData = await loadWorkflow(fileName);
-            if (!mount.isConnected || getActiveProfile()?.id !== profileId) return;
-            const jsonText = typeof workflowData === 'string' ? workflowData : JSON.stringify(workflowData, null, 2);
-
-            const popup = document.createElement('div');
-            popup.className = 'igs-workflow-editor-popup';
-            popup.innerHTML = `
-                <div class="igs-workflow-editor-header">
-                    <h3>${esc(tr('igs.modal.workflow.editorTitle', 'Edit Workflow: {name}', { name: fileName }))}</h3>
-                    <i class="fa-solid fa-xmark igs-workflow-editor-close" title="Cancel" data-i18n="[title]igs.modal.attr.cancel"></i>
-                </div>
-                <textarea class="igs-workflow-editor-textarea" spellcheck="false">${esc(jsonText)}</textarea>
-                <div class="igs-workflow-editor-footer">
-                    <button class="menu_button igs-workflow-editor-save"><span data-i18n="igs.modal.text.save">Save</span></button>
-                    <button class="menu_button igs-workflow-editor-cancel"><span data-i18n="igs.modal.text.cancel">Cancel</span></button>
-                </div>
-            `;
-            popup.innerHTML = localizeHtml(popup.innerHTML);
-            mount.replaceChildren(popup);
-
-            const closePopup = () => popup.remove();
-
-            popup.querySelector('.igs-workflow-editor-close').addEventListener('click', closePopup);
-            popup.querySelector('.igs-workflow-editor-cancel').addEventListener('click', closePopup);
-            popup.querySelector('.igs-workflow-editor-save').addEventListener('click', async () => {
-                try {
-                    const editedJson = popup.querySelector('.igs-workflow-editor-textarea').value;
-                    // Validate JSON before saving
-                    JSON.parse(editedJson);
-                    await saveWorkflow(fileName, editedJson);
-                    toastr.success(tr('igs.modal.workflow.saved', 'Workflow saved!'));
-                    closePopup();
-                } catch (err) {
-                    toastr.error(tr('igs.modal.workflow.saveFailed', 'Save failed: {error}', { error: err.message }));
-                }
-            });
-        } catch (err) {
-            toastr.error(tr('igs.modal.workflow.loadFailed', 'Failed to load workflow: {error}', { error: err.message }));
-        }
-    }
-
-    /**
-     * Helper to reload the workflow dropdown and select a specific value.
-     * @param {string} [selectValue] - The value to select after reloading.
-     */
-    async function reloadWorkflowList(selectValue) {
-        const url = profile.connection.comfyUrl;
-        if (!url) return;
-        const workflows = await loadWorkflows(url);
-        populateModalSelect('igs_m_comfy_workflow', workflows, selectValue || '');
-        if (selectValue) {
-            conn.comfyWorkflow = selectValue;
+            const values = await readTavernConnection(mode);
+            if (!isCurrent()) return;
+            const fields = ['model', 'vae', 'sampler', 'scheduler', 'steps', 'cfgScale', 'width', 'height', 'denoisingStrength', 'clipSkip', 'seed'];
+            if (mode === 'comfy') fields.push('comfyWorkflow', 'workflowVariables', 'comfyUrl');
+            else fields.push('autoUrl', 'autoAuth');
+            for (const field of fields) if (values[field] !== undefined) conn[field] = values[field];
             saveProfiles();
+            renderActiveTab();
+            toastr.success(tr('igs.connectionUi.tavernParamsRead', 'Tavern parameters copied.'));
+        } catch (error) {
+            if (feedback?.isConnected && isCurrent()) feedback.textContent = tr('igs.connectionUi.readFailed', 'Could not read Tavern parameters: {error}', { error: error.message });
         }
-    }
+    });
+    modal.on('click.igstab', '#igs_tavern_refresh', () => loadTavernSummary(profileId, ui));
+    modal.on('click.igstab', '#igs_tavern_settings', openTavernImageSettings);
 
-    // Edit workflow
+    modal.on('click.igstab', '.igs-size-presets [data-size]', function () {
+        const [width, height] = $(this).data('size').split(',');
+        $('#igs_m_width_value').val(width).trigger('input');
+        $('#igs_m_height_value').val(height).trigger('input');
+    });
+    modal.on('click.igstab', '#igs_m_swap_size', () => {
+        const width = $('#igs_m_width_value').val();
+        const height = $('#igs_m_height_value').val();
+        $('#igs_m_width_value').val(height).trigger('input');
+        $('#igs_m_height_value').val(width).trigger('input');
+    });
+    modal.on('change.igstab', '#igs_m_seed_random', function () {
+        const random = this.checked;
+        const seedInput = $('#igs_m_seed').prop('disabled', random);
+        if (random) seedInput.val(-1).trigger('input');
+        else if (Number(seedInput.val()) < 0) seedInput.val(0).trigger('input');
+    });
+
+    modal.on('click.igstab', '#igs_workflow_refresh', () => reloadWorkflowList().catch(error => {
+        if (isCurrent('comfy')) workflowListError(error);
+    }));
+    modal.on('change.igstab', '#igs_m_comfy_workflow', function () {
+        ++workflowListRequest;
+        conn.comfyWorkflow = $(this).val();
+        ui.querySelector('#igs_workflow_editor_mount')?.replaceChildren();
+        saveProfiles();
+        refreshWorkflowHint(conn, conn.comfyWorkflow, ui);
+    });
+    modal.on('click.igstab', '#igs_m_workflow_new', () => {
+        const originalWorkflow = conn.comfyWorkflow;
+        openNameForm(tr('igs.connectionUi.newWorkflow', 'New workflow'), async name => {
+            if (!isCurrent('comfy') || conn.comfyWorkflow !== originalWorkflow) return;
+            await openWorkflowEditorUi(name, '{}', conn, {
+                isCurrent: () => isCurrent('comfy') && conn.comfyWorkflow === originalWorkflow,
+                onSaved: async savedName => {
+                    if (!isCurrent('comfy') || conn.comfyWorkflow !== originalWorkflow) return;
+                    conn.comfyWorkflow = savedName;
+                    saveProfiles();
+                    await reloadWorkflowList(savedName);
+                },
+            });
+        });
+    });
+    modal.on('click.igstab', '#igs_m_workflow_import', () => $('#igs_m_workflow_import_file').trigger('click'));
+    modal.on('change.igstab', '#igs_m_workflow_import_file', async function () {
+        const file = this.files?.[0];
+        if (!file) return;
+        const fileInput = this;
+        try {
+            const sourceText = await file.text();
+            JSON.parse(sourceText);
+            if (!isCurrent('comfy')) return;
+            openNameForm(tr('igs.connectionUi.importWorkflow', 'Import workflow'), async name => {
+                const result = inspectWorkflowForSave(sourceText, conn);
+                await saveWorkflow(name, result.template);
+                if (!isCurrent('comfy')) return;
+                conn.comfyWorkflow = name;
+                saveProfiles();
+                await reloadWorkflowList(name);
+            });
+        } catch (error) {
+            if (isCurrent('comfy')) toastr.error(tr('igs.connectionUi.importFailed', 'Import failed: {error}', { error: error.message }));
+        } finally {
+            fileInput.value = '';
+        }
+    });
     modal.on('click.igstab', '#igs_m_workflow_edit', async () => {
-        const fileName = $('#igs_m_comfy_workflow').val();
-        if (!fileName) {
-            toastr.warning(tr('igs.modal.workflow.noSelection', 'No workflow selected.'));
-            return;
-        }
-        await openWorkflowEditor(fileName);
-    });
-
-    // New workflow
-    modal.on('click.igstab', '#igs_m_workflow_new', async () => {
-        const name = prompt(tr('igs.modal.workflow.newFilename', 'New workflow filename:'));
-        if (!name) return;
+        const workflowName = conn.comfyWorkflow;
+        if (!workflowName) return toastr.warning(tr('igs.connectionUi.chooseFirst', 'Select a workflow first.'));
         try {
-            await saveWorkflow(name, '{}');
-            toastr.success(tr('igs.modal.workflow.created', 'Workflow "{name}" created!', { name }));
-            await reloadWorkflowList(name);
-            await openWorkflowEditor(name);
-        } catch (err) {
-            toastr.error(tr('igs.modal.workflow.createFailed', 'Failed to create workflow: {error}', { error: err.message }));
+            const files = await loadWorkflows();
+            if (!isCurrent('comfy') || conn.comfyWorkflow !== workflowName) return;
+            if (!files.includes(workflowName)) {
+                throw new Error(tr('igs.workflow.missing', 'Workflow "{name}" was not found in SillyTavern.', { name: workflowName }));
+            }
+            const data = await loadWorkflow(workflowName);
+            if (!isCurrent('comfy') || conn.comfyWorkflow !== workflowName) return;
+            await openWorkflowEditorUi(workflowName, typeof data === 'string' ? data : JSON.stringify(data, null, 2), conn, {
+                isCurrent: () => isCurrent('comfy') && conn.comfyWorkflow === workflowName,
+                onSaved: () => reloadWorkflowList(workflowName),
+            });
+        } catch (error) {
+            if (isCurrent('comfy')) toastr.error(tr('igs.connectionUi.loadWorkflowFailed', 'Could not load workflow: {error}', { error: error.message }));
         }
     });
-
-    // Rename workflow
-    modal.on('click.igstab', '#igs_m_workflow_rename', async () => {
-        const oldName = $('#igs_m_comfy_workflow').val();
-        if (!oldName) {
-            toastr.warning(tr('igs.modal.workflow.noSelection', 'No workflow selected.'));
-            return;
-        }
-        const newName = prompt(tr('igs.modal.workflow.renamePrompt', 'New name for workflow:'), oldName);
-        if (!newName || newName === oldName) return;
+    modal.on('click.igstab', '#igs_m_workflow_save_as', async () => {
+        const workflowName = conn.comfyWorkflow;
+        if (!workflowName) return toastr.warning(tr('igs.connectionUi.chooseFirst', 'Select a workflow first.'));
+        let sourceText = ui.querySelector('.igs-workflow-editor-textarea')?.value;
         try {
+            if (sourceText === undefined) {
+                const files = await loadWorkflows();
+                if (!isCurrent('comfy') || conn.comfyWorkflow !== workflowName) return;
+                if (!files.includes(workflowName)) {
+                    throw new Error(tr('igs.workflow.missing', 'Workflow "{name}" was not found in SillyTavern.', { name: workflowName }));
+                }
+                const data = await loadWorkflow(workflowName);
+                if (!isCurrent('comfy') || conn.comfyWorkflow !== workflowName) return;
+                sourceText = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
+            }
+            await saveAsWorkflow(tr('igs.connectionUi.saveAs', 'Save as'), sourceText, workflowName);
+        } catch (error) {
+            if (isCurrent('comfy')) toastr.error(error.message);
+        }
+    });
+    modal.on('click.igstab', '#igs_m_workflow_rename', () => {
+        const oldName = conn.comfyWorkflow;
+        if (!oldName) return;
+        openNameForm(tr('igs.connectionUi.renameWorkflow', 'Rename workflow'), async newName => {
+            if (newName === oldName) return;
             await renameWorkflow(oldName, newName);
-            toastr.success(tr('igs.modal.workflow.renamed', 'Workflow renamed to "{name}"!', { name: newName }));
+            if (!isCurrent('comfy') || conn.comfyWorkflow !== oldName) return;
+            conn.comfyWorkflow = newName;
+            saveProfiles();
             await reloadWorkflowList(newName);
-        } catch (err) {
-            toastr.error(tr('igs.modal.workflow.renameFailed', 'Failed to rename workflow: {error}', { error: err.message }));
-        }
+        }, { initial: oldName, allowExisting: oldName });
     });
-
-    // Delete workflow
     modal.on('click.igstab', '#igs_m_workflow_delete', async () => {
-        const fileName = $('#igs_m_comfy_workflow').val();
-        if (!fileName) {
-            toastr.warning(tr('igs.modal.workflow.noSelection', 'No workflow selected.'));
-            return;
-        }
-        if (!confirm(tr('igs.modal.workflow.confirmDelete', 'Delete workflow "{name}"?', { name: fileName }))) return;
+        const workflowName = conn.comfyWorkflow;
+        if (!workflowName || !window.confirm(tr('igs.connectionUi.confirmDeleteWorkflow', 'Delete workflow “{name}”?', { name: workflowName }))) return;
         try {
-            await deleteWorkflow(fileName);
-            toastr.success(tr('igs.modal.workflow.deleted', 'Workflow "{name}" deleted!', { name: fileName }));
+            await deleteWorkflow(workflowName);
+            if (!isCurrent('comfy') || conn.comfyWorkflow !== workflowName) return;
             conn.comfyWorkflow = '';
             saveProfiles();
             await reloadWorkflowList('');
-        } catch (err) {
-            toastr.error(tr('igs.modal.workflow.deleteFailed', 'Failed to delete workflow: {error}', { error: err.message }));
+        } catch (error) {
+            if (isCurrent('comfy')) reportError(error);
         }
     });
 
-    // Sliders
-    bindModalSlider('igs_m_steps', 'igs_m_steps_value', val => { conn.steps = parseInt(val, 10); });
-    bindModalSlider('igs_m_cfg_scale', 'igs_m_cfg_scale_value', val => { conn.cfgScale = parseFloat(val); });
-    bindModalSlider('igs_m_width', 'igs_m_width_value', val => { conn.width = parseInt(val, 10); });
-    bindModalSlider('igs_m_height', 'igs_m_height_value', val => { conn.height = parseInt(val, 10); });
-    bindModalSlider('igs_m_denoising', 'igs_m_denoising_value', val => { conn.denoisingStrength = parseFloat(val); });
-    bindModalSlider('igs_m_clip_skip', 'igs_m_clip_skip_value', val => { conn.clipSkip = parseInt(val, 10); });
-
-    // Seed
-    bindModalInput('igs_m_seed', val => { conn.seed = parseInt(val, 10); });
+    modal.on('click.igstab', '#igs_var_add', () => {
+        if (!Array.isArray(conn.workflowVariables)) conn.workflowVariables = [];
+        const base = tr('igs.connectionUi.customVariableBase', 'custom');
+        const names = new Set(conn.workflowVariables.map(variable => variable.name));
+        let name = base;
+        let suffix = 2;
+        while (names.has(name)) name = `${base}${suffix++}`;
+        conn.workflowVariables.push({ name, type: 'string', value: '' });
+        saveProfiles();
+        renderVariables();
+    });
+    modal.on('click.igstab', '.igs-var-remove', function () {
+        conn.workflowVariables.splice(Number($(this).closest('[data-index]').data('index')), 1);
+        saveProfiles();
+        renderVariables();
+        scheduleVariableHint();
+    });
+    modal.on('input.igstab', '.igs-var-name,.igs-var-value', function () {
+        const row = $(this).closest('[data-index]');
+        const variable = conn.workflowVariables[Number(row.data('index'))];
+        if (!variable || !isCurrent('comfy')) return;
+        variable.name = row.find('.igs-var-name').val().trim();
+        variable.value = row.find('.igs-var-value').val();
+        if (variable.type === 'number' && variable.value.trim() !== '' && !Number.isFinite(Number(variable.value))) return;
+        saveProfiles();
+        scheduleVariableHint();
+    });
+    modal.on('change.igstab', '.igs-var-type', function () {
+        const row = $(this).closest('[data-index]');
+        const index = Number(row.data('index'));
+        const variable = conn.workflowVariables[index];
+        if (!variable || !isCurrent('comfy')) return;
+        const previousValue = variable.value;
+        variable.type = this.value;
+        if (variable.type === 'number') variable.value = Number.isFinite(Number(previousValue)) ? Number(previousValue) : 0;
+        else if (variable.type === 'boolean') variable.value = String(previousValue) === 'true';
+        else variable.value = String(previousValue ?? '');
+        saveProfiles();
+        renderVariables();
+        document.querySelector(`#igs_custom_vars [data-index="${index}"] .igs-var-type`)?.focus();
+        scheduleVariableHint();
+    });
+    modal.on('click.igstab', '#igs_var_preview', () => refreshWorkflowHint(conn, conn.comfyWorkflow, ui, true));
 }
 
-// ============================================================
-// Tab 5: Image Prompt Construction
-// ============================================================
+async function loadTavernSummary(profileId, ui) {
+    const target = document.getElementById('igs_tavern_summary');
+    if (!target) return;
+    target.textContent = tr('igs.connectionUi.loadingTavern', 'Loading Tavern settings…');
+
+    const isCurrent = () => {
+        const profile = getActiveProfile();
+        return target.isConnected && ui?.isConnected && profile?.id === profileId &&
+            getConnectionMode(profile.connection) === 'tavern';
+    };
+
+    try {
+        const summary = await getTavernSummary();
+        if (!isCurrent()) return;
+        target.innerHTML = summary.available
+            ? `<strong>${esc(summary.label || summary.source || tr('igs.connectionUi.configured', 'Configured'))}</strong>
+                <span>${tr('igs.connectionUi.model', 'Model')}: ${esc(summary.model || tr('igs.connectionUi.tavernDefault', 'Tavern default'))}</span>
+                <span>${tr('igs.connectionUi.size', 'Size')}: ${esc(summary.width || '—')} × ${esc(summary.height || '—')}</span>
+                <span>${tr('igs.connectionUi.workflow', 'Workflow')}: ${esc(summary.workflow || tr('igs.connectionUi.managedByTavern', 'Managed by Tavern'))}</span>`
+            : `<span>${esc(summary.error || tr('igs.connectionUi.tavernNotConfigured', 'Tavern image generation is not configured.'))}</span>`;
+    } catch (error) {
+        if (isCurrent()) target.textContent = tr('igs.connectionUi.readFailed', 'Could not read Tavern settings: {error}', { error: error.message });
+    }
+}
+
+function openTavernImageSettings() {
+    const section=document.querySelector('.sd_settings');if(!section)return;
+    section.scrollIntoView({behavior:'smooth',block:'center'});
+    const content=section.querySelector('.inline-drawer-content');
+    if(content&&getComputedStyle(content).display==='none')section.querySelector('.inline-drawer-toggle')?.click();
+}
+
+function normalizeWorkflowFilename(rawName) {
+    let name = String(rawName || '').trim();
+    if (!name) throw new Error(tr('igs.connectionUi.nameRequired', 'Enter a workflow file name.'));
+    if (/[\\/:*?"<>|\u0000-\u001f]/.test(name) || name === '.' || name === '..' || name.includes('..')) {
+        throw new Error(tr('igs.connectionUi.invalidFilename', 'File names cannot contain paths or reserved characters.'));
+    }
+    if (!/\.json$/i.test(name)) name += '.json';
+    if (name.toLowerCase() === '.json') throw new Error(tr('igs.connectionUi.nameRequired', 'Enter a workflow file name.'));
+    return name;
+}
+
+function workflowNameForm(title, onSave, options = {}) {
+    const mount = document.getElementById('igs_workflow_editor_mount');
+    if (!mount) return;
+    const form = document.createElement('form');
+    form.className = 'igs-workflow-name-form';
+    form.innerHTML = `<label>${esc(title)}<input class="text_pole" name="name" required value="${esc(options.initial || '')}" placeholder="workflow.json"></label>
+        <button type="submit" class="menu_button">${tr('igs.connectionUi.saveContinue', 'Save and continue')}</button>
+        <button type="button" class="menu_button igs-name-cancel">${tr('igs.connectionUi.cancel', 'Cancel')}</button>
+        <div class="igs-name-feedback" role="status" aria-live="polite"></div>`;
+    if (options.preserveEditor) {
+        mount.querySelector('.igs-workflow-name-form')?.remove();
+        mount.prepend(form);
+    } else {
+        mount.replaceChildren(form);
+    }
+    const input = form.elements.namedItem('name');
+    const submit = form.querySelector('[type="submit"]');
+    input.focus();
+
+    form.addEventListener('submit', async event => {
+        event.preventDefault();
+        if (submit.disabled) return;
+        const feedback = form.querySelector('.igs-name-feedback');
+        submit.disabled = true;
+        input.disabled = true;
+        try {
+            if (options.isCurrent && !options.isCurrent()) return;
+            const name = normalizeWorkflowFilename(input.value);
+            const currentFiles = await loadWorkflows();
+            if (options.isCurrent && !options.isCurrent()) return;
+            const duplicate = currentFiles.find(file => file.toLowerCase() === name.toLowerCase());
+            if (duplicate && duplicate !== options.allowExisting) {
+                throw new Error(tr('igs.connectionUi.filenameExists', 'A workflow with this name already exists. Choose another name.'));
+            }
+            await onSave(name);
+            if (form.isConnected && form.parentNode === mount) form.remove();
+        } catch (error) {
+            if (form.isConnected) feedback.textContent = error.message;
+        } finally {
+            if (form.isConnected) {
+                submit.disabled = false;
+                input.disabled = false;
+            }
+        }
+    });
+    form.querySelector('.igs-name-cancel').addEventListener('click', () => form.remove());
+}
+
+function inspectWorkflowForSave(text, conn) {
+    const result = inspectWorkflow(text, conn);
+    if (result.unknown.length) {
+        throw new Error(tr('igs.workflow.unknownVariables', 'Workflow contains unknown variables: {names}', {
+            names: result.unknown.join(', '),
+        }));
+    }
+    return result;
+}
+
+async function openWorkflowEditorUi(name, text, conn, options = {}) {
+    const mount = document.getElementById('igs_workflow_editor_mount');
+    if (!mount || (options.isCurrent && !options.isCurrent())) return;
+    const popup = document.createElement('div');
+    popup.className = 'igs-workflow-editor-popup';
+    popup.innerHTML = `<div class="igs-workflow-editor-header"><h3>${esc(name)}</h3>
+            <button type="button" class="menu_button igs-editor-close">${tr('igs.connectionUi.close', 'Close')}</button></div>
+        <details class="igs-variable-inserter"><summary>${tr('igs.connectionUi.insertVariable', 'Insert variable:')}</summary><div class="igs-variable-buttons">
+            ${WORKFLOW_VARIABLES.map(variable => `<button type="button" class="menu_button" data-var="${esc(variable.name)}">%${esc(variable.name)}%</button>`).join('')}
+        </div></details>
+        <textarea class="igs-workflow-editor-textarea" spellcheck="false">${esc(text)}</textarea>
+        <div class="igs-workflow-editor-footer">
+            <button type="button" class="menu_button igs-editor-save">${tr('igs.connectionUi.save', 'Save')}</button>
+            <button type="button" class="menu_button igs-editor-check">${tr('igs.connectionUi.validatePreview', 'Validate and preview')}</button>
+            <button type="button" class="menu_button igs-editor-close">${tr('igs.connectionUi.cancel', 'Cancel')}</button>
+        </div><div class="igs-workflow-editor-feedback" aria-live="polite"></div>`;
+    mount.replaceChildren(popup);
+    const area = popup.querySelector('textarea');
+    const feedback = popup.querySelector('.igs-workflow-editor-feedback');
+    const saveButton = popup.querySelector('.igs-editor-save');
+
+    popup.querySelectorAll('[data-var]').forEach(button => button.addEventListener('click', () => {
+        const token = `%${button.dataset.var}%`;
+        area.setRangeText(token, area.selectionStart, area.selectionEnd, 'end');
+        area.focus();
+    }));
+    popup.querySelectorAll('.igs-editor-close').forEach(button => button.addEventListener('click', () => popup.remove()));
+    popup.querySelector('.igs-editor-check').addEventListener('click', () => {
+        try {
+            const result = inspectWorkflow(area.value, conn);
+            feedback.textContent = result.unknown.length
+                ? tr('igs.connectionUi.unknownVariablesFound', 'Unknown variables: {names}', { names: result.unknown.join(', ') })
+                : tr('igs.connectionUi.validationResult', 'Valid. Used: {used}; unknown variables: {unknown}', {
+                    used: result.used.join(', ') || tr('igs.connectionUi.none', 'none'),
+                    unknown: tr('igs.connectionUi.none', 'none'),
+                });
+            feedback.textContent += `\n${result.preview}`;
+        } catch (error) {
+            feedback.textContent = error.message;
+        }
+    });
+    saveButton.addEventListener('click', async () => {
+        if (saveButton.disabled) return;
+        saveButton.disabled = true;
+        try {
+            if (options.isCurrent && !options.isCurrent()) return;
+            const result = inspectWorkflowForSave(area.value, conn);
+            await saveWorkflow(name, result.template);
+            if (options.isCurrent && !options.isCurrent()) return;
+            await options.onSaved?.(name);
+            if (popup.isConnected) popup.remove();
+            toastr.success(tr('igs.connectionUi.workflowSaved', 'Workflow saved.'));
+        } catch (error) {
+            if (popup.isConnected) feedback.textContent = error.message;
+        } finally {
+            if (saveButton.isConnected) saveButton.disabled = false;
+        }
+    });
+}
+
+async function refreshWorkflowHint(conn, name = conn.comfyWorkflow, ui, showPreview = false) {
+    const hint = document.getElementById('igs_workflow_effective_hint');
+    const preview = document.getElementById('igs_var_preview_result');
+    const profileId = getActiveProfile()?.id;
+    const isCurrent = () => {
+        const profile = getActiveProfile();
+        return ui?.isConnected && profile?.id === profileId && profile.connection === conn &&
+            getConnectionMode(conn) === 'comfy' && conn.comfyWorkflow === name;
+    };
+
+    if (!name) {
+        if (showPreview && preview) {
+            preview.hidden = false;
+            preview.textContent = tr('igs.connectionUi.selectWorkflowPreview', 'Select a workflow to preview variable replacements.');
+        }
+        if (hint) hint.textContent = tr('igs.connectionUi.effectiveHint', 'Select a workflow to see which parameters it uses.');
+        return;
+    }
+
+    try {
+        const files = await loadWorkflows();
+        if (!isCurrent()) return;
+        if (!files.includes(name)) throw new Error(tr('igs.workflow.missing', 'Workflow "{name}" was not found in SillyTavern.', { name }));
+        const data = await loadWorkflow(name);
+        if (!isCurrent()) return;
+        const result = inspectWorkflow(typeof data === 'string' ? data : JSON.stringify(data), conn);
+        const labels = Object.fromEntries(WORKFLOW_VARIABLES.map(variable => [
+            variable.name,
+            tr(`igs.connectionUi.variable.${variable.name}`, variable.label || variable.name),
+        ]));
+        if (hint) {
+            const used = result.used.filter(key => Object.hasOwn(labels, key));
+            const fixed = Object.keys(labels).filter(key => !result.used.includes(key));
+            hint.textContent = tr('igs.connectionUi.effectiveStatus', 'Effective: {used}; fixed by workflow: {fixed}', {
+                used: used.map(key => labels[key]).join(', ') || tr('igs.connectionUi.noParameters', 'no parameter placeholders detected'),
+                fixed: fixed.map(key => labels[key]).join(', ') || tr('igs.connectionUi.none', 'none'),
+            });
+        }
+        if (preview && showPreview) {
+            preview.hidden = false;
+            preview.textContent = [
+                tr('igs.connectionUi.variablesUsed', 'Used variables: {used}', { used: result.used.join(', ') || tr('igs.connectionUi.none', 'none') }),
+                tr('igs.connectionUi.unknownVariables', 'Unknown variables: {unknown}', { unknown: result.unknown.join(', ') || tr('igs.connectionUi.none', 'none') }),
+                '',
+                result.preview,
+            ].join('\n');
+        }
+    } catch (error) {
+        if (!isCurrent()) return;
+        if (hint) hint.textContent = tr('igs.connectionUi.workflowValidationFailed', 'Workflow validation failed: {error}', { error: error.message });
+        if (preview && showPreview) {
+            preview.hidden = false;
+            preview.textContent = error.message;
+        }
+    }
+}
+
+function workflowListError(error){const message=tr('igs.connectionUi.workflowListFailed','Could not load workflows: {error}',{error:error.message});const select=document.getElementById('igs_m_comfy_workflow');if(select)select.innerHTML=`<option value="">${esc(message)}</option>`;toastr.error(message);}
 
 function renderPromptConstructionTab() {
     const profile = getActiveProfile();

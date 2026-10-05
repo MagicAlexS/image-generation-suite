@@ -41,6 +41,17 @@ test('registered Chinese catalog contains every UI key and matching parameters',
             const fallback = runInNewContext(literal);
             assert.deepEqual(tokens(catalog[key] || ''), tokens(fallback), `Parameters differ: ${key}`);
         }
+        for (const match of source.matchAll(/\bT\(\s*(['"])([\w.-]+)\1\s*,\s*((?:"(?:\\.|[^"\\])*")|(?:'(?:\\.|[^'\\])*'))/g)) {
+            const key = `igs.connectionUi.${match[2]}`;
+            keys.add(key);
+            assert.deepEqual(tokens(catalog[key] || ''), tokens(runInNewContext(match[3])), `Parameters differ: ${key}`);
+        }
+        if (file === 'src/connection.js') {
+            const variables = source.match(/export const WORKFLOW_VARIABLES = (\[[\s\S]*?\]);/);
+            for (const variable of runInNewContext(variables[1])) {
+                keys.add(`igs.connectionUi.variable.${variable.name}`);
+            }
+        }
     }
     assert.ok(keys.size > 100, 'the settings and runtime UI should both be localized');
     for (const key of keys) assert.ok(catalog[key]?.trim(), `Missing Chinese translation: ${key}`);

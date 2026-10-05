@@ -33,6 +33,7 @@ const profilesURL = moduleURL((await source('profiles.js'))
     .replaceAll("'../../../../extensions.js'", JSON.stringify(hostURL))
     .replaceAll("'../../../../../script.js'", JSON.stringify(hostURL))
     .replaceAll("'./promptTemplates.js'", JSON.stringify(templatesURL))
+    .replaceAll("'./connectionSettings.js'", JSON.stringify(new URL('../src/connectionSettings.js', import.meta.url).href))
     .replaceAll("'./i18n.js'", JSON.stringify(i18nURL)));
 const classifierURL = moduleURL(`export async function classifySceneWithLLM() {
     globalThis.__igsPromptInjectionTest.classifications++;

@@ -2,6 +2,7 @@ import { extension_settings } from '../../../../extensions.js';
 import { saveSettingsDebounced } from '../../../../../script.js';
 import { DEFAULT_SCENE_PROMPT, DEFAULT_CHARACTER_PROMPT, upgradePromptDefaults } from './promptTemplates.js';
 import { tr } from './i18n.js';
+import { createDefaultConnection, normalizeConnection } from './connectionSettings.js';
 
 const EXTENSION_NAME = 'image-generation-suite';
 
@@ -28,24 +29,7 @@ export function getDefaultProfile(name) {
             regex: '/<pic="(.*?)"\\s*\\/?\\s*>/g',
             hideFromLLM: true,
         },
-        connection: {
-            serverType: 'comfy',
-            comfyUrl: 'http://127.0.0.1:8188',
-            autoUrl: 'http://localhost:7860',
-            autoAuth: '',
-            model: '',
-            vae: '',
-            sampler: '',
-            scheduler: '',
-            steps: 20,
-            cfgScale: 7,
-            width: 512,
-            height: 512,
-            denoisingStrength: 0.7,
-            clipSkip: 1,
-            seed: -1,
-            comfyWorkflow: '',
-        },
+        connection: createDefaultConnection(),
         activeStyleProfileId: '',
         activeStyleName: 'Default',
         activeCharacterProfileId: '',
@@ -323,6 +307,12 @@ export function initSettings() {
         Object.keys(settings.profiles).forEach(id => {
             const profile = settings.profiles[id];
             let profileChanged = false;
+
+            const connection = normalizeConnection(profile.connection);
+            if (JSON.stringify(connection) !== JSON.stringify(profile.connection)) {
+                profile.connection = connection;
+                profileChanged = true;
+            }
 
             if (!profile.aiLora) {
                 profile.aiLora = {
